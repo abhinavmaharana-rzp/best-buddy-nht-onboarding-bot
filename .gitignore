@@ -1,0 +1,31 @@
+# Node modules
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# dotenv environment variables
+.env
+.env.*  # ignores .env.test, .env.production, etc.
+.env.test
+
+# Jest coverage
+coverage/
+
+# Build output
+dist/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE-specific files
+.vscode/
+.idea/
+
+# Optional: Ignore uploaded files (if storing uploads temporarily)
+uploads/
