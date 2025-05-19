@@ -594,6 +594,104 @@ module.exports = (boltApp) => {
   });
 });
 
+router.get('/progress/:userId', authMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Get checklist progress
+    const checklistItems = await ChecklistItem.find({ userId });
+    const checklistProgress = {
+      total: checklistItems.length,
+      completed: checklistItems.filter(item => item.completed).length,
+      items: checklistItems.map(item => ({
+        task: item.task,
+        completed: item.completed
+      }))
+    };
+
+    // Get onboarding tasks progress
+    const taskStatuses = await TaskStatus.find({ userId });
+    const onboardingProgress = {
+      total: 0,
+      completed: 0,
+      weeks: []
+    };
+
+    // Get user's subfunction to determine which onboarding data to use
+    const userTask = await TaskStatus.findOne({ userId });
+    const subFunction = userTask?.subFunction || 'default';
+    const selectedOnboardingData = subFunction === 'SR' ? srOnboardingData : onboardingData;
+
+    // Calculate progress for each week and day
+    selectedOnboardingData.forEach((week, weekIndex) => {
+      const weekProgress = {
+        week: week.week,
+        total: 0,
+        completed: 0,
+        days: []
+      };
+
+      week.days.forEach((day, dayIndex) => {
+        const dayProgress = {
+          day: day.day,
+          total: day.events.length,
+          completed: 0,
+          tasks: []
+        };
+
+        day.events.forEach((event, taskIndex) => {
+          const taskStatus = taskStatuses.find(
+            status => status.weekIndex === weekIndex && 
+                     status.dayIndex === dayIndex && 
+                     status.taskIndex === taskIndex
+          );
+
+          dayProgress.tasks.push({
+            title: event.title,
+            owner: event.owner,
+            mode: event.mode,
+            completed: taskStatus?.completed || false
+          });
+
+          if (taskStatus?.completed) {
+            dayProgress.completed++;
+            weekProgress.completed++;
+            onboardingProgress.completed++;
+          }
+        });
+
+        dayProgress.total = day.events.length;
+        weekProgress.total += day.events.length;
+        onboardingProgress.total += day.events.length;
+        weekProgress.days.push(dayProgress);
+      });
+
+      onboardingProgress.weeks.push(weekProgress);
+    });
+
+    // Calculate overall progress
+    const overallProgress = {
+      checklist: {
+        percentage: checklistProgress.total ? (checklistProgress.completed / checklistProgress.total) * 100 : 0,
+        ...checklistProgress
+      },
+      onboarding: {
+        percentage: onboardingProgress.total ? (onboardingProgress.completed / onboardingProgress.total) * 100 : 0,
+        ...onboardingProgress
+      },
+      total: {
+        percentage: (checklistProgress.total + onboardingProgress.total) ? 
+          ((checklistProgress.completed + onboardingProgress.completed) / 
+          (checklistProgress.total + onboardingProgress.total)) * 100 : 0
+      }
+    };
+
+    res.status(200).json(overallProgress);
+  } catch (error) {
+    console.error('Error fetching progress:', error);
+    res.status(500).json({ error: 'Error fetching progress report' });
+  }
+});
 
   return router;
 };
