@@ -169,17 +169,14 @@ module.exports = (boltApp) => {
       const userId = body.user.id;
 
       try {
-        // Update checklist item status for this specific user
-        await ChecklistItem.findOneAndUpdate(
-          { _id: itemId, userId },
-          { completed: true }
-        );
+        // Update checklist item status
+        await ChecklistItem.findByIdAndUpdate(itemId, { completed: true });
 
-        // Get the updated checklist items for this user
+        // Get the updated checklist items
         const updatedItems = await ChecklistItem.find({ userId });
         
-        // Update the message with completed status
-        const updatedBlocks = welcomeBlocks.map(block => {
+        // Update the message with completed status while preserving all blocks
+        const updatedBlocks = body.message.blocks.map(block => {
           if (block.type === 'section' && block.accessory && block.accessory.action_id === `complete_checklist_item_${itemId}`) {
             return {
               ...block,
