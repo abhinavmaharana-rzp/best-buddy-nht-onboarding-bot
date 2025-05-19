@@ -2,6 +2,8 @@
 const express = require('express');
 const authMiddleware = require('../utils/auth');
 const onboardingData = require('../data/onboardingData');
+const srOnboardingData = require('../data/srOnboardingData'); // We'll create this
+const checklistData = require('../data/checklistData');
 const ChecklistItem = require('../models/checklistItem');
 const TaskStatus = require('../models/taskStatus');
 
@@ -19,7 +21,7 @@ module.exports = (boltApp) => {
       });
 
       const userId = user.user.id;
-      await sendOnboardingPlan(boltApp, userId, onboardingData, { userName, userFunction, subFunction });
+      await sendOnboardingPlan(boltApp, userId, { userName, userFunction, subFunction });
 
       res.status(200).send('Onboarding plan triggered successfully.');
     } catch (error) {
@@ -28,13 +30,32 @@ module.exports = (boltApp) => {
     }
   });
 
-  async function sendOnboardingPlan(boltApp, userId, onboardingData, userData) {
+  async function sendOnboardingPlan(boltApp, userId, userData) {
     const { userName, userFunction, subFunction } = userData;
+    
+    // Select onboarding data based on subfunction
+    let selectedOnboardingData;
+    if (subFunction === 'SR') {
+      selectedOnboardingData = srOnboardingData;
+    } else {
+      // Default plan for Integrations, Tech Support, and TAM
+      selectedOnboardingData = onboardingData;
+    }
+
     let checklistItems = [];
     try {
-      checklistItems = await ChecklistItem.find();
+      checklistItems = await ChecklistItem.find({ userId });
+      
+      if (checklistItems.length === 0) {
+        const newItems = checklistData.map(item => ({
+          task: item.text.text,
+          userId,
+          completed: false
+        }));
+        checklistItems = await ChecklistItem.insertMany(newItems);
+      }
     } catch (error) {
-      console.error("Error fetching checklist items:", error);
+      console.error("Error fetching/creating checklist items:", error);
       return;
     }
 
@@ -55,7 +76,7 @@ module.exports = (boltApp) => {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: '📚 *Our Story*\nLet us kickstart your journey with a peek at Razorpay’s incredible growth story. From humble beginnings in 2014 to one of India’s leading fintech giants.\n\n👉 <https://alpha.razorpay.com/repo/employee-induction-v2|Who we are and our journey>'
+            text: "📚 *Our Story*\nLet us kickstart your journey with a peek at Razorpay's incredible growth story. From humble beginnings in 2014 to one of India's leading fintech giants.\n\n👉 <https://alpha.razorpay.com/repo/employee-induction-v2|Who we are and our journey>"
           }
         },
         { type: 'divider' },
@@ -115,24 +136,75 @@ module.exports = (boltApp) => {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `- ${item.task} ${item.completed ? ':white_check_mark:' : ''}`
+          text: `- ${item.task}`
         }
       };
-      if (!item.completed) {
-        sectionBlock.accessory = {
-          type: 'button',
-          text: { type: 'plain_text', text: 'Mark Complete', emoji: true },
-          action_id: `complete_checklist_item_${item._id}`
-        };
-      }
+      sectionBlock.accessory = {
+        type: 'button',
+        text: { type: 'plain_text', text: 'Mark Complete', emoji: true },
+        action_id: `complete_checklist_item_${item._id}`
+      };
       welcomeBlocks.push(sectionBlock);
+    });
+
+    // Add handler for checklist completion
+    boltApp.action(/complete_checklist_item_(.+)/, async ({ ack, body, client }) => {
+      await ack();
+      const itemId = body.actions[0].action_id.split('_')[3];
+      const userId = body.user.id;
+
+      try {
+        // Update checklist item status for this specific user
+        await ChecklistItem.findOneAndUpdate(
+          { _id: itemId, userId },
+          { completed: true }
+        );
+
+        // Get the updated checklist items for this user
+        const updatedItems = await ChecklistItem.find({ userId });
+        
+        // Update the message with completed status
+        const updatedBlocks = welcomeBlocks.map(block => {
+          if (block.type === 'section' && block.accessory && block.accessory.action_id === `complete_checklist_item_${itemId}`) {
+            return {
+              ...block,
+              text: {
+                type: 'mrkdwn',
+                text: `${block.text.text} ✓`
+              },
+              accessory: {
+                type: 'button',
+                text: { type: 'plain_text', text: '✓', emoji: true },
+                action_id: `checklist_completed_${itemId}`,
+                style: 'primary'
+              }
+            };
+          }
+          return block;
+        });
+
+        await client.chat.update({
+          token: process.env.SLACK_BOT_TOKEN,
+          channel: body.channel.id,
+          ts: body.message.ts,
+          blocks: updatedBlocks,
+          text: `Welcome to Razorpay, ${userName}!`
+        });
+
+      } catch (error) {
+        console.error('Error updating checklist item:', error);
+        await client.chat.postMessage({
+          channel: userId,
+          text: "Error updating checklist item. Please try again later."
+        });
+      }
     });
 
     let onboardingBlocks = [
       { type: 'divider' },
       {
         type: 'section',
-        text: { type: 'mrkdwn', text: `✅ *Here’s your 30-day New Hire Plan:*` },
+        text: { type: 'mrkdwn', text: `✅ *Here's your ${subFunction} Onboarding Plan:*` },
       },
       {
         type: 'section',
@@ -140,7 +212,7 @@ module.exports = (boltApp) => {
       },
       {
         type: 'actions',
-        elements: onboardingData.map((weekData, index) => ({
+        elements: selectedOnboardingData.map((weekData, index) => ({
           type: 'button',
           text: { type: 'plain_text', text: weekData.week, emoji: true },
           action_id: `show_week_${index}`
@@ -168,7 +240,7 @@ module.exports = (boltApp) => {
         { type: 'divider' },
         {
           type: 'section',
-          text: { type: 'mrkdwn', text: `✅ *Here’s your 30-day New Hire Plan:*` }
+          text: { type: 'mrkdwn', text: `✅ *Here's your ${subFunction} Onboarding Plan:*` }
         },
         {
           type: 'section',
@@ -176,7 +248,7 @@ module.exports = (boltApp) => {
         },
         {
           type: 'actions',
-          elements: onboardingData.map((weekData, index) => ({
+          elements: selectedOnboardingData.map((weekData, index) => ({
             type: 'button',
             text: { type: 'plain_text', text: weekData.week, emoji: true },
             action_id: `show_week_${index}_${ts}`
@@ -200,7 +272,15 @@ module.exports = (boltApp) => {
     await ack();
     const actionId = body.actions[0].action_id;
     const weekIndex = parseInt(actionId.split('_')[2]);
-    const selectedWeek = onboardingData[weekIndex];
+    const userId = body.user.id;
+
+    // Get user's subfunction from TaskStatus or another source
+    const userTask = await TaskStatus.findOne({ userId });
+    const subFunction = userTask?.subFunction || 'default';
+
+    // Select the appropriate onboarding data
+    const selectedOnboardingData = subFunction === 'SR' ? srOnboardingData : onboardingData;
+    const selectedWeek = selectedOnboardingData[weekIndex];
 
     if (!selectedWeek || !selectedWeek.days) {
       await client.chat.postMessage({
@@ -220,9 +300,9 @@ module.exports = (boltApp) => {
     await client.chat.postMessage({
       token: process.env.SLACK_BOT_TOKEN,
       channel: body.user.id,
-      text: `Here’s the schedule for *${selectedWeek.week}*.`,
+      text: `Here's the schedule for *${selectedWeek.week}*.`,
       blocks: [
-        { type: 'section', text: { type: 'mrkdwn', text: `Here’s the schedule for *${selectedWeek.week}*.` } },
+        { type: 'section', text: { type: 'mrkdwn', text: `Here's the schedule for *${selectedWeek.week}*.` } },
         { type: 'actions', elements: dayButtons }
       ]
     });
@@ -233,6 +313,7 @@ module.exports = (boltApp) => {
     const [weekIndexStr, dayIndexStr] = body.actions[0].action_id.split('_').slice(2);
     const weekIndex = parseInt(weekIndexStr);
     const dayIndex = parseInt(dayIndexStr);
+    const userId = body.user.id;
 
     const day = onboardingData[weekIndex]?.days?.[dayIndex];
     if (!day || !day.events) {
@@ -243,6 +324,16 @@ module.exports = (boltApp) => {
       return;
     }
 
+    // Get completed tasks for this user
+    const completedTasks = await TaskStatus.find({
+      userId,
+      weekIndex,
+      dayIndex,
+      completed: true
+    });
+
+    const completedTaskIndices = new Set(completedTasks.map(task => task.taskIndex));
+
     const taskBlocks = [
       {
         type: 'section',
@@ -250,8 +341,16 @@ module.exports = (boltApp) => {
       },
       ...day.events.map((event, i) => ({
         type: 'section',
-        text: { type: 'mrkdwn', text: `*${i + 1}. ${event.title}*\nOwner: ${event.owner}\nMode: ${event.mode}` },
-        accessory: {
+        text: { 
+          type: 'mrkdwn', 
+          text: `*${i + 1}. ${event.title}*\nOwner: ${event.owner}\nMode: ${event.mode}${completedTaskIndices.has(i) ? ' ✓' : ''}` 
+        },
+        accessory: completedTaskIndices.has(i) ? {
+          type: 'button',
+          text: { type: 'plain_text', text: '✓', emoji: true },
+          action_id: `task_completed_${weekIndex}_${dayIndex}_${i}`,
+          style: 'primary'
+        } : {
           type: 'button',
           text: { type: 'plain_text', text: 'Mark Complete', emoji: true },
           action_id: `mark_complete_${weekIndex}_${dayIndex}_${i}`
@@ -369,53 +468,68 @@ module.exports = (boltApp) => {
 
 
   boltApp.action(/back_to_day_(\d+)_(\d+)/, async ({ ack, body, client }) => {
-  await ack();
-  const actionId = body.actions[0].action_id;
-  const [ , , weekIndexStr, dayIndexStr ] = actionId.split('_');
-  const weekIndex = parseInt(weekIndexStr, 10);
-  const dayIndex = parseInt(dayIndexStr, 10);
+    await ack();
+    const actionId = body.actions[0].action_id;
+    const [ , , weekIndexStr, dayIndexStr ] = actionId.split('_');
+    const weekIndex = parseInt(weekIndexStr, 10);
+    const dayIndex = parseInt(dayIndexStr, 10);
+    const userId = body.user.id;
 
-  const day = onboardingData[weekIndex]?.days?.[dayIndex];
+    const day = onboardingData[weekIndex]?.days?.[dayIndex];
 
-  if (!day || !day.events) {
-    await client.chat.postMessage({
-      channel: body.user.id,
-      text: "Unable to load the day's tasks. Please try again later.",
+    if (!day || !day.events) {
+      await client.chat.postMessage({
+        channel: body.user.id,
+        text: "Unable to load the day's tasks. Please try again later.",
+      });
+      return;
+    }
+
+    // Get completed tasks for this user
+    const completedTasks = await TaskStatus.find({
+      userId,
+      weekIndex,
+      dayIndex,
+      completed: true
     });
-    return;
-  }
 
-  const taskBlocks = [
-    {
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: `*${day.day}* (${day.time}) — Here are your onboarding tasks:`,
-      },
-    },
-    ...day.events.map((event, i) => ({
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: `*${i + 1}. ${event.title}*\nOwner: ${event.owner}\nMode: ${event.mode}`,
-      },
-      accessory: {
-        type: 'button',
-        text: { type: 'plain_text', text: 'Mark Complete', emoji: true },
-        action_id: `mark_complete_${weekIndex}_${dayIndex}_${i}`,
-      }
-    }))
-  ];
+    const completedTaskIndices = new Set(completedTasks.map(task => task.taskIndex));
 
-  await client.chat.update({
-    token: process.env.SLACK_BOT_TOKEN,
-    channel: body.channel.id,
-    ts: body.message.ts,
-    text: `Tasks for ${day.day}`, // or whatever the message is
-    blocks: taskBlocks, // or week buttons
+    const taskBlocks = [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `*${day.day}* (${day.time}) — Here are your onboarding tasks:`,
+        },
+      },
+      ...day.events.map((event, i) => ({
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `*${i + 1}. ${event.title}*\nOwner: ${event.owner}\nMode: ${event.mode}${completedTaskIndices.has(i) ? ' ✓' : ''}`,
+        },
+        accessory: completedTaskIndices.has(i) ? {
+          type: 'button',
+          text: { type: 'plain_text', text: '✓', emoji: true },
+          action_id: `task_completed_${weekIndex}_${dayIndex}_${i}`,
+          style: 'primary'
+        } : {
+          type: 'button',
+          text: { type: 'plain_text', text: 'Mark Complete', emoji: true },
+          action_id: `mark_complete_${weekIndex}_${dayIndex}_${i}`,
+        }
+      }))
+    ];
+
+    await client.chat.update({
+      token: process.env.SLACK_BOT_TOKEN,
+      channel: body.channel.id,
+      ts: body.message.ts,
+      text: `Tasks for ${day.day}`,
+      blocks: taskBlocks,
+    });
   });
-
-});
 
 
   boltApp.action(/back_to_week_(\d+)/, async ({ ack, body, client }) => {
@@ -441,11 +555,11 @@ module.exports = (boltApp) => {
 
   await client.chat.postMessage({
     channel: body.user.id,
-    text: `Here’s the schedule for *${selectedWeek.week}*. Please choose a day to see the tasks.`,
+    text: `Here's the schedule for *${selectedWeek.week}*. Please choose a day to see the tasks.`,
     blocks: [
       {
         type: 'section',
-        text: { type: 'mrkdwn', text: `Here’s the schedule for *${selectedWeek.week}*.` },
+        text: { type: 'mrkdwn', text: `Here's the schedule for *${selectedWeek.week}*.` },
       },
       { type: 'actions', elements: dayButtons }
     ],
