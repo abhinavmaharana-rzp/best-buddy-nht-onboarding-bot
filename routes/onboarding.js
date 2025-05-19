@@ -216,7 +216,7 @@ module.exports = (boltApp) => {
       { type: 'divider' },
       {
         type: 'section',
-        text: { type: 'mrkdwn', text: `✅ *Here's your ${subFunction} Onboarding Plan:*` },
+        text: { type: 'mrkdwn', text: `✅ *Here's your 30 days Onboarding Plan:*` },
       },
       {
         type: 'section',
@@ -252,7 +252,7 @@ module.exports = (boltApp) => {
         { type: 'divider' },
         {
           type: 'section',
-          text: { type: 'mrkdwn', text: `✅ *Here's your ${subFunction} Onboarding Plan:*` }
+          text: { type: 'mrkdwn', text: `✅ *Here's your 30 days Onboarding Plan:*` }
         },
         {
           type: 'section',
@@ -487,7 +487,13 @@ module.exports = (boltApp) => {
     const dayIndex = parseInt(dayIndexStr, 10);
     const userId = body.user.id;
 
-    const day = onboardingData[weekIndex]?.days?.[dayIndex];
+    // Get user's subfunction from TaskStatus or another source
+    const userTask = await TaskStatus.findOne({ userId });
+    const subFunction = userTask?.subFunction || 'default';
+
+    // Select the appropriate onboarding data
+    const selectedOnboardingData = subFunction === 'SR' ? srOnboardingData : onboardingData;
+    const day = selectedOnboardingData[weekIndex]?.days?.[dayIndex];
 
     if (!day || !day.events) {
       await client.chat.postMessage({
@@ -531,7 +537,17 @@ module.exports = (boltApp) => {
           text: { type: 'plain_text', text: 'Mark Complete', emoji: true },
           action_id: `mark_complete_${weekIndex}_${dayIndex}_${i}`,
         }
-      }))
+      })),
+      {
+        type: 'actions',
+        elements: [
+          {
+            type: 'button',
+            text: { type: 'plain_text', text: '📅 Back to Week', emoji: true },
+            action_id: `back_to_week_${weekIndex}`,
+          }
+        ]
+      }
     ];
 
     await client.chat.update({
