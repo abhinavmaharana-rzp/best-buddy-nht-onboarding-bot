@@ -1,6 +1,6 @@
 // Description: This is the main entry point for the Slack app. It initializes the app, connects to MongoDB, and sets up routes for onboarding and checklist functionalities.
 require('dotenv').config();
-const { App } = require('@slack/bolt');
+const { App, AwsLambdaReceiver } = require('@slack/bolt');
 const express = require('express');
 const mongoose = require('mongoose');
 const onboardingRoutes = require('./routes/onboarding');
@@ -13,7 +13,7 @@ const app = new App({
     socketMode: true, // Enable Socket Mode
     appToken: process.env.SLACK_APP_TOKEN, // Add the app-level token
     socketModeReceiverOptions: {
-      pingInterval: 20000 // Increase to 10 seconds (in milliseconds)
+      pingInterval: 10000 // Increase to 10 seconds (in milliseconds)
     }
 });
 
