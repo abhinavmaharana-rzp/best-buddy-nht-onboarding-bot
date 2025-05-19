@@ -5,6 +5,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const onboardingRoutes = require('./routes/onboarding');
 const checklistRoutes = require('./routes/checklist');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpecs = require('./swagger');
 
 // Initializes your app with your bot token and signing secret
 const app = new App({
@@ -31,6 +33,9 @@ mongoose.connect(process.env.MONGODB_URI, {}).then(() => {
 expressApp.use('/onboarding', onboardingRoutes(app)); // Pass the Bolt app instance
 expressApp.use('/checklist', checklistRoutes(app));   // Pass the Bolt app instance
 
+// Swagger UI
+expressApp.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
+
 // Start the Bolt app
 (async () => {
   try {
@@ -41,8 +46,11 @@ expressApp.use('/checklist', checklistRoutes(app));   // Pass the Bolt app insta
     expressApp.listen(process.env.PORT || 3000, () => {
       console.log(`⚡️ Bolt app is running!`);
       console.log(`⚡️ Express app is running on port ${process.env.PORT || 3000}`);
+      console.log(`📚 API Documentation available at http://localhost:${process.env.PORT || 3000}/api-docs`);
     });
   } catch (error) {
     console.error('Error starting app:', error);
   }
 })();
+
+module.exports = expressApp;
