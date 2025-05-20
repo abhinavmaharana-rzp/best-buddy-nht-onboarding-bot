@@ -36,11 +36,20 @@ module.exports = [
         ],
       },
       {
-          day: 'Day 5',
-          time: '10:30 AM - 1:30 PM',
-          events: [
-            { title: 'Understanding of standard checkout in Web (with integration hand-on)', owner: 'Abhinav Maharana', mode: 'Video + In-Person' },
-          ],
+        day: 'Day 5',
+        time: '10:30 AM - 1:30 PM',
+        events: [
+          { title: 'Understanding of standard checkout in Web (with integration hand-on)', owner: 'Abhinav Maharana', mode: 'Video + In-Person' },
+        ],
+      },
+      {
+        day: 'Second Half Sessions',
+        time: '2:30 PM - 6:00 PM',
+        events: [
+          { title: 'Task for the Day', owner: 'Self / L&D', mode: 'In-Person' },
+          { title: 'Buddy Meet', owner: 'Buddy', mode: 'In-Person' },
+          { title: 'Process (PSE) and SOP', owner: 'Team SPOC', mode: 'Video + In-Person' },
+        ],
       },
     ],
   },
@@ -76,11 +85,118 @@ module.exports = [
         ],
       },
       {
-          day: 'Day 10',
-          time: '10:30 AM - 1:30 PM',
-          events: [
-            { title: 'Refunds and Settlement', owner: 'Abhinav Maharana', mode: 'Video + In-Person' },
-          ],
+        day: 'Day 10',
+        time: '10:30 AM - 1:30 PM',
+        events: [
+          { title: 'Refunds and Settlement', owner: 'Abhinav Maharana', mode: 'Video + In-Person' },
+        ],
+      },
+      {
+        day: 'Second Half Sessions',
+        time: '2:30 PM - 6:00 PM',
+        events: [
+          { title: 'Task for the Day', owner: 'Self / L&D', mode: 'In-Person' },
+          { title: 'Buddy Meet', owner: 'Buddy', mode: 'In-Person' },
+          { title: 'Process (BEST) and SOP', owner: 'Team SPOC', mode: 'Video + In-Person' },
+        ],
+      },
+    ],
+  },
+  {
+    week: 'Week 3',
+    days: [
+      {
+        day: 'Day 11',
+        time: '10:30 AM - 1:30 PM',
+        events: [
+          { title: 'Merchant and Admin Dashboard', owner: 'Abhinav Maharana', mode: 'Video + In-Person' },
+        ],
+      },
+      {
+        day: 'Day 12',
+        time: '10:30 AM - 1:30 PM',
+        events: [
+          { title: 'Freshdesk and Jira', owner: 'Abhinav Maharana', mode: 'Video + In-Person' },
+        ],
+      },
+      {
+        day: 'Day 13',
+        time: '10:30 AM - 1:30 PM',
+        events: [
+          { title: 'Coralogix and Querybook', owner: 'Abhinav Maharana', mode: 'Video + In-Person' },
+        ],
+      },
+      {
+        day: 'Day 14',
+        time: '10:30 AM - 1:30 PM',
+        events: [
+          { title: 'Training on sample tickets and department hands-on', owner: 'Abhinav Maharana', mode: 'Video + In-Person' },
+        ],
+      },
+      {
+        day: 'Day 15',
+        time: '10:30 AM - 1:30 PM',
+        events: [
+          { title: 'Recurring Suite (cards, UPI autopay, eMandate, paper NACH)', owner: 'Abhinav Maharana', mode: 'Video + In-Person' },
+        ],
+      },
+      {
+        day: 'Second Half Sessions',
+        time: '2:30 PM - 6:00 PM',
+        events: [
+          { title: 'Process (CS)', owner: 'Team SPOC', mode: 'Video + In-Person' },
+          { title: 'Buddy Meet', owner: 'Buddy', mode: 'In-Person' },
+          { title: 'Process (Finops / Settlements) and SOP', owner: 'Team SPOC', mode: 'Video + In-Person' },
+        ],
+      },
+    ],
+  },
+  {
+    week: 'Week 4',
+    days: [
+      {
+        day: 'Day 16',
+        time: '10:30 AM - 1:30 PM',
+        events: [
+          { title: 'Affordability Suite, Subscriptions, and Charge at Will', owner: 'Abhinav Maharana', mode: 'Video + In-Person' },
+        ],
+      },
+      {
+        day: 'Day 17',
+        time: '10:30 AM - 1:30 PM',
+        events: [
+          { title: 'Route and Smart Collect', owner: 'Abhinav Maharana', mode: 'Video + In-Person' },
+        ],
+      },
+      {
+        day: 'Day 18',
+        time: '10:30 AM - 1:30 PM',
+        events: [
+          { title: 'Optimizer and Magic Checkout', owner: 'Abhinav Maharana', mode: 'Video + In-Person' },
+        ],
+      },
+      {
+        day: 'Day 19',
+        time: '10:30 AM - 1:30 PM',
+        events: [
+          { title: 'Cross Border Export and Import Flow', owner: 'Abhinav Maharana', mode: 'Video + In-Person' },
+        ],
+      },
+      {
+        day: 'Day 20',
+        time: '10:30 AM - 1:30 PM',
+        events: [
+          { title: 'Checkout 360', owner: 'Abhinav Maharana', mode: 'Video + In-Person' },
+        ],
+      },
+      {
+        day: 'Second Half Sessions',
+        time: '2:30 PM - 6:00 PM',
+        events: [
+          { title: 'Task for the Day', owner: 'Self / L&D', mode: 'In-Person' },
+          { title: 'Buddy Meet', owner: 'Buddy', mode: 'In-Person' },
+          { title: 'Process (Risk) and SOP', owner: 'Team SPOC', mode: 'Video + In-Person' },
+        ],
       },
     ],
   },

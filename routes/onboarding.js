@@ -278,11 +278,11 @@ module.exports = (boltApp) => {
           type: 'mrkdwn',
           text: "📚 *Our Story*\nLet us kickstart your journey with a peek at Razorpay's incredible growth story. From humble beginnings in 2014 to one of India's leading fintech giants.\n\n👉 <https://alpha.razorpay.com/repo/employee-induction-v2|Who we are and our journey>"
         },
-        accessory: {
-          type: 'button',
-          text: { type: 'plain_text', text: 'View Story', emoji: true },
-          action_id: 'view_story'
-        }
+        // accessory: {
+        //   type: 'button',
+        //   text: { type: 'plain_text', text: 'View Story', emoji: true },
+        //   action_id: 'view_story'
+        // }
       },
       { type: 'divider' },
       {
@@ -291,11 +291,11 @@ module.exports = (boltApp) => {
           type: 'mrkdwn',
           text: '📚 *Know Our Culture*\nAt Razorpay, we pride ourselves on a culture that is sharp and dynamic. Every Razor brings a unique perspective, and together, we grow stronger.\n\n👉 <https://docs.google.com/presentation/d/1U1JJYFozfo7kSgG0eSS0s1-9e4IhFVIN4r7vMhVkzt8/edit#slide=id.g5d1f7d325d_0_8|Culture Deck>'
         },
-        accessory: {
-          type: 'button',
-          text: { type: 'plain_text', text: 'View Culture', emoji: true },
-          action_id: 'view_culture'
-        }
+        // accessory: {
+        //   type: 'button',
+        //   text: { type: 'plain_text', text: 'View Culture', emoji: true },
+        //   action_id: 'view_culture'
+        // }
       },
       { type: 'divider' },
       {
@@ -304,11 +304,11 @@ module.exports = (boltApp) => {
           type: 'mrkdwn',
           text: '📚 *Our HR Policies*\nHere are the essential HR policies every Razor should know:\n\n👉 <https://alpha.razorpay.com/repo/employee-policies|Employee Policies Hub>\n\n• <https://learnx.disprz.com/#!/skill/144/1/0|PoSH - Prevention of Sexual Harassment>\n• <https://learnx.disprz.com/#!/skill/146/1/0|ISMS>\n• <https://alpha.razorpay.com/repo/httpsdocs-google-comdocumentd1tx17ayr1yrp0h47mwwurnliho4luwt0fzrjg1xfu5w4edituspsharing|Zero Tolerance Policy>'
         },
-        accessory: {
-          type: 'button',
-          text: { type: 'plain_text', text: 'View Policies', emoji: true },
-          action_id: 'view_policies'
-        }
+        // accessory: {
+        //   type: 'button',
+        //   text: { type: 'plain_text', text: 'View Policies', emoji: true },
+        //   action_id: 'view_policies'
+        // }
       },
       { type: 'divider' },
       {
@@ -317,11 +317,11 @@ module.exports = (boltApp) => {
           type: 'mrkdwn',
           text: '📚 *Your Superpowers – Tool Access*\nGet access to the essential tools for your journey:\n• Freshdesk\n• Admin Dashboard\n• Merchant Dashboard\n• Coralogix\n• Querybook'
         },
-        accessory: {
-          type: 'button',
-          text: { type: 'plain_text', text: 'Get Access', emoji: true },
-          action_id: 'get_tool_access'
-        }
+        // accessory: {
+        //   type: 'button',
+        //   text: { type: 'plain_text', text: 'Get Access', emoji: true },
+        //   action_id: 'get_tool_access'
+        // }
       },
       { type: 'divider' },
       {
@@ -645,11 +645,11 @@ module.exports = (boltApp) => {
       {
         type: 'actions',
         elements: [
-          {
-            type: 'button',
-            text: { type: 'plain_text', text: '🔙 Back to Day', emoji: true },
-            action_id: `back_to_day_${weekIndex}_${dayIndex}`,
-          },
+          // {
+          //   type: 'button',
+          //   text: { type: 'plain_text', text: '🔙 Back to Day', emoji: true },
+          //   action_id: `back_to_day_${weekIndex}_${dayIndex}`,
+          // },
           {
             type: 'button',
             text: { type: 'plain_text', text: '📅 Back to Week', emoji: true },
