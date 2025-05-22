@@ -6,6 +6,7 @@ const srOnboardingData = require('../data/srOnboardingData'); // We'll create th
 const checklistData = require('../data/checklistData');
 const ChecklistItem = require('../models/checklistItem');
 const TaskStatus = require('../models/taskStatus');
+const TaskApproval = require('../models/taskApproval');
 
 /**
  * @swagger
@@ -555,7 +556,7 @@ module.exports = (boltApp) => {
         type: 'section',
         text: { 
           type: 'mrkdwn', 
-          text: `*${i + 1}. ${event.title}*\nOwner: ${event.owner}\nMode: ${event.mode}${completedTaskIndices.has(i) ? ' ✓' : ''}` 
+          text: `*${i + 1}. ${event.title}*\nOwner: ${event.owner}\nMode: ${event.mode}${event.link ? `\n🔗 <${event.link}|View Resource>` : ''}${completedTaskIndices.has(i) ? ' ✓' : ''}` 
         },
         accessory: completedTaskIndices.has(i) ? {
           type: 'button',
@@ -577,107 +578,281 @@ module.exports = (boltApp) => {
     });
   });
 
+  // Handle mark complete button click
   boltApp.action(/mark_complete_\d+_\d+_\d+/, async ({ ack, body, client }) => {
-  await ack();
+    await ack();
+    const [ , , weekIndexStr, dayIndexStr, taskIndexStr ] = body.actions[0].action_id.split('_');
+    const weekIndex = parseInt(weekIndexStr, 10);
+    const dayIndex = parseInt(dayIndexStr, 10);
+    const taskIndex = parseInt(taskIndexStr, 10);
+    const userId = body.user.id;
 
-  const actionId = body.actions[0].action_id;
-  const [ , , weekIndexStr, dayIndexStr, taskIndexStr ] = actionId.split('_');
-  const weekIndex = parseInt(weekIndexStr, 10);
-  const dayIndex = parseInt(dayIndexStr, 10);
-  const taskIndex = parseInt(taskIndexStr, 10);
-  const userId = body.user.id;
-
-  console.log("mark_complete action_id:", actionId);
-  console.log({
-    weekIndex,
-    dayIndex,
-    taskIndex,
-    onboardingDataLength: onboardingData.length,
-    daysLength: onboardingData[weekIndex]?.days?.length,
-    eventsLength: onboardingData[weekIndex]?.days?.[dayIndex]?.events?.length,
-  });
-
-
-  if (
-    !onboardingData[weekIndex] ||
-    !onboardingData[weekIndex].days?.[dayIndex] ||
-    !onboardingData[weekIndex].days[dayIndex].events?.[taskIndex]
-  ) {
-    await client.chat.postMessage({
-      channel: userId,
-      text: "Invalid task data. Please try again."
-    });
-    return;
-  }
-
-  const task = onboardingData[weekIndex].days[dayIndex].events[taskIndex];
-  console.log("Task data:", task);
-
-  // const task = onboardingData?.[weekIndex]?.days?.[dayIndex]?.events?.[taskIndex];
-
-  // if (!task) {
-  //   await client.chat.postMessage({
-  //     channel: userId,
-  //     text: "Invalid task data. Please try again."
-  //   });
-  //   return;
-  // }
-
-  try {
-    let taskStatus = await TaskStatus.findOne({ userId, weekIndex, dayIndex, taskIndex });
-
-    if (!taskStatus) {
-      taskStatus = new TaskStatus({ userId, weekIndex, dayIndex, taskIndex, completed: true });
-    } else {
-      taskStatus.completed = true;
+    if (
+      !onboardingData[weekIndex] ||
+      !onboardingData[weekIndex].days?.[dayIndex] ||
+      !onboardingData[weekIndex].days[dayIndex].events?.[taskIndex]
+    ) {
+      await client.chat.postMessage({
+        channel: userId,
+        text: "Invalid task data. Please try again."
+      });
+      return;
     }
 
-    await taskStatus.save();
+    const task = onboardingData[weekIndex].days[dayIndex].events[taskIndex];
 
-    const completionBlocks = [
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `✅ You have successfully marked "*${task.title}*" as complete.`,
-        },
-      },
-      {
-        type: 'actions',
-        elements: [
-          // {
-          //   type: 'button',
-          //   text: { type: 'plain_text', text: '🔙 Back to Day', emoji: true },
-          //   action_id: `back_to_day_${weekIndex}_${dayIndex}`,
-          // },
+    try {
+      // Create approval request
+      const approval = new TaskApproval({
+        userId,
+        taskTitle: task.title,
+        weekIndex,
+        dayIndex,
+        taskIndex,
+        messageTs: body.message.ts,
+        channelId: body.channel.id
+      });
+      await approval.save();
+
+      // Notify admin
+      const adminEmail = 'abhinav.maharana@razorpay.com';
+      const adminUser = await client.users.lookupByEmail({
+        token: process.env.SLACK_BOT_TOKEN,
+        email: adminEmail
+      });
+
+      if (adminUser.ok) {
+        const adminBlocks = [
           {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*Task Completion Request*\nUser: <@${userId}>\nTask: ${task.title}\nWeek: ${onboardingData[weekIndex].week}\nDay: ${onboardingData[weekIndex].days[dayIndex].day}`
+            }
+          },
+          {
+            type: 'actions',
+            elements: [
+              {
+                type: 'button',
+                text: { type: 'plain_text', text: 'Approve', emoji: true },
+                style: 'primary',
+                action_id: `approve_task_${approval._id}`
+              },
+              {
+                type: 'button',
+                text: { type: 'plain_text', text: 'Reject', emoji: true },
+                style: 'danger',
+                action_id: `reject_task_${approval._id}`
+              }
+            ]
+          }
+        ];
+
+        await client.chat.postMessage({
+          token: process.env.SLACK_BOT_TOKEN,
+          channel: adminUser.user.id,
+          text: `Task completion request from <@${userId}>`,
+          blocks: adminBlocks
+        });
+      }
+
+      // Update message to show pending status
+      const pendingBlocks = [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*${task.title}*\nOwner: ${task.owner}\nMode: ${task.mode}${task.link ? `\n🔗 <${task.link}|View Resource>` : ''}\n\n⏳ *Status: Pending Approval*`
+          },
+          accessory: {
             type: 'button',
-            text: { type: 'plain_text', text: '📅 Back to Week', emoji: true },
-            action_id: `back_to_week_${weekIndex}`,
+            text: { type: 'plain_text', text: '⏳ Pending', emoji: true },
+            action_id: `task_pending_${weekIndex}_${dayIndex}_${taskIndex}`,
+            style: 'primary'
+          }
+        }
+      ];
+
+      await client.chat.update({
+        token: process.env.SLACK_BOT_TOKEN,
+        channel: body.channel.id,
+        ts: body.message.ts,
+        text: `Task completion request: ${task.title}`,
+        blocks: pendingBlocks
+      });
+
+    } catch (error) {
+      console.error('Error creating approval request:', error);
+      await client.chat.postMessage({
+        channel: userId,
+        text: 'Error creating approval request. Please try again later.'
+      });
+    }
+  });
+
+  // Handle admin approval/rejection
+  boltApp.action(/approve_task_(.+)/, async ({ ack, body, client }) => {
+    await ack();
+    const approvalId = body.actions[0].action_id.split('_')[2];
+    
+    try {
+      const approval = await TaskApproval.findById(approvalId);
+      if (!approval) {
+        throw new Error('Approval request not found');
+      }
+
+      // Update approval status
+      approval.status = 'approved';
+      approval.reviewedAt = new Date();
+      approval.reviewedBy = body.user.id;
+      await approval.save();
+
+      // Update task status
+      await TaskStatus.findOneAndUpdate(
+        {
+          userId: approval.userId,
+          weekIndex: approval.weekIndex,
+          dayIndex: approval.dayIndex,
+          taskIndex: approval.taskIndex
+        },
+        { completed: true },
+        { upsert: true }
+      );
+
+      // Update original message
+      const approvedTask = onboardingData[approval.weekIndex].days[approval.dayIndex].events[approval.taskIndex];
+      const completionBlocks = [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*${approvedTask.title}*\nOwner: ${approvedTask.owner}\nMode: ${approvedTask.mode}${approvedTask.link ? `\n🔗 <${approvedTask.link}|View Resource>` : ''}\n\n✅ *Status: Completed*`
+          },
+          accessory: {
+            type: 'button',
+            text: { type: 'plain_text', text: '✓', emoji: true },
+            action_id: `task_completed_${approval.weekIndex}_${approval.dayIndex}_${approval.taskIndex}`,
+            style: 'primary'
+          }
+        }
+      ];
+
+      await client.chat.update({
+        token: process.env.SLACK_BOT_TOKEN,
+        channel: approval.channelId,
+        ts: approval.messageTs,
+        text: `Task completed: ${approvedTask.title}`,
+        blocks: completionBlocks
+      });
+
+      // Notify user
+      await client.chat.postMessage({
+        token: process.env.SLACK_BOT_TOKEN,
+        channel: approval.userId,
+        text: `Your task completion request for "${approvedTask.title}" has been approved.`
+      });
+
+      // Update admin message
+      await client.chat.update({
+        token: process.env.SLACK_BOT_TOKEN,
+        channel: body.channel.id,
+        ts: body.message.ts,
+        text: `Task completion request approved for ${approvedTask.title}`,
+        blocks: [
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `✅ *Task Completion Request Approved*\nUser: <@${approval.userId}>\nTask: ${approvedTask.title}\nWeek: ${onboardingData[approval.weekIndex].week}\nDay: ${onboardingData[approval.weekIndex].days[approval.dayIndex].day}`
+            }
           }
         ]
+      });
+
+    } catch (error) {
+      console.error('Error processing approval:', error);
+      await client.chat.postMessage({
+        channel: body.user.id,
+        text: 'Error processing approval. Please try again later.'
+      });
+    }
+  });
+
+  // Handle admin rejection
+  boltApp.action(/reject_task_(.+)/, async ({ ack, body, client }) => {
+    await ack();
+    const approvalId = body.actions[0].action_id.split('_')[2];
+    
+    try {
+      const approval = await TaskApproval.findById(approvalId);
+      if (!approval) {
+        throw new Error('Approval request not found');
       }
-    ];
 
-    console.log("Sending confirmation with blocks:", JSON.stringify(completionBlocks, null, 2));
+      // Update approval status
+      approval.status = 'rejected';
+      approval.reviewedAt = new Date();
+      approval.reviewedBy = body.user.id;
+      await approval.save();
 
-    await client.chat.update({
-      token: process.env.SLACK_BOT_TOKEN,
-      channel: body.channel.id,
-      ts: body.message.ts,
-      text: `You have successfully marked "${task.title}" as complete.`,
-      blocks: completionBlocks,
-    });
+      // Update original message
+      const rejectedTask = onboardingData[approval.weekIndex].days[approval.dayIndex].events[approval.taskIndex];
+      const rejectionBlocks = [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*${rejectedTask.title}*\nOwner: ${rejectedTask.owner}\nMode: ${rejectedTask.mode}${rejectedTask.link ? `\n🔗 <${rejectedTask.link}|View Resource>` : ''}\n\n❌ *Status: Rejected*`
+          },
+          accessory: {
+            type: 'button',
+            text: { type: 'plain_text', text: 'Mark Complete', emoji: true },
+            action_id: `mark_complete_${approval.weekIndex}_${approval.dayIndex}_${approval.taskIndex}`
+          }
+        }
+      ];
 
-  } catch (error) {
-    console.error("Error saving task status or sending message:", error);
-    await client.chat.postMessage({
-      channel: userId,
-      text: "Error saving the task status. Please try again later."
-    });
-  }
-});
+      await client.chat.update({
+        token: process.env.SLACK_BOT_TOKEN,
+        channel: approval.channelId,
+        ts: approval.messageTs,
+        text: `Task completion request rejected: ${rejectedTask.title}`,
+        blocks: rejectionBlocks
+      });
 
+      // Notify user
+      await client.chat.postMessage({
+        token: process.env.SLACK_BOT_TOKEN,
+        channel: approval.userId,
+        text: `Your task completion request for "${rejectedTask.title}" has been rejected.`
+      });
+
+      // Update admin message
+      await client.chat.update({
+        token: process.env.SLACK_BOT_TOKEN,
+        channel: body.channel.id,
+        ts: body.message.ts,
+        text: `Task completion request rejected for ${rejectedTask.title}`,
+        blocks: [
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `❌ *Task Completion Request Rejected*\nUser: <@${approval.userId}>\nTask: ${rejectedTask.title}\nWeek: ${onboardingData[approval.weekIndex].week}\nDay: ${onboardingData[approval.weekIndex].days[approval.dayIndex].day}`
+            }
+          }
+        ]
+      });
+
+    } catch (error) {
+      console.error('Error processing rejection:', error);
+      await client.chat.postMessage({
+        channel: body.user.id,
+        text: 'Error processing rejection. Please try again later.'
+      });
+    }
+  });
 
   boltApp.action(/back_to_day_(\d+)_(\d+)/, async ({ ack, body, client }) => {
     await ack();
@@ -725,7 +900,7 @@ module.exports = (boltApp) => {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `*${i + 1}. ${event.title}*\nOwner: ${event.owner}\nMode: ${event.mode}${completedTaskIndices.has(i) ? ' ✓' : ''}`,
+          text: `*${i + 1}. ${event.title}*\nOwner: ${event.owner}\nMode: ${event.mode}${event.link ? `\n🔗 <${event.link}|View Resource>` : ''}${completedTaskIndices.has(i) ? ' ✓' : ''}`,
         },
         accessory: completedTaskIndices.has(i) ? {
           type: 'button',
