@@ -1,26 +1,40 @@
 const express = require('express');
-const authMiddleware = require('../utils/auth');
+const jwt = require('jsonwebtoken');
 const TaskApproval = require('../models/taskApproval');
 const TaskStatus = require('../models/taskStatus');
 
 const router = express.Router();
 
+// Authentication middleware
+const authMiddleware = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ message: 'No token provided' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    if (decoded.email !== 'abhinav.maharana@razorpay.com') {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Invalid token' });
+  }
+};
+
 /**
  * @swagger
- * /user-lookup/email/{email}:
+ * /user-lookup/by-email/{email}:
  *   get:
  *     summary: Get user information by email
  *     tags: [User Lookup]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: email
- *         required: true
- *         schema:
- *           type: string
  */
-router.get('/email/:email', authMiddleware, async (req, res) => {
+router.get('/by-email/:email', authMiddleware, async (req, res) => {
   try {
     const { email } = req.params;
     const user = await req.app.client.users.lookupByEmail({
@@ -32,11 +46,7 @@ router.get('/email/:email', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.status(200).json({
-      userId: user.user.id,
-      email: user.user.profile.email,
-      name: user.user.profile.real_name
-    });
+    res.json(user.user);
   } catch (error) {
     console.error('Error looking up user:', error);
     res.status(500).json({ error: 'Error looking up user' });
@@ -48,43 +58,14 @@ router.get('/email/:email', authMiddleware, async (req, res) => {
  * /user-lookup/task-approval/{approvalId}:
  *   post:
  *     summary: Approve or reject a task completion request
- *     tags: [Task Approval]
+ *     tags: [User Lookup]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: approvalId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - status
- *             properties:
- *               status:
- *                 type: string
- *                 enum: [approved, rejected]
  */
 router.post('/task-approval/:approvalId', authMiddleware, async (req, res) => {
   try {
     const { approvalId } = req.params;
     const { status } = req.body;
-    const adminEmail = 'abhinav.maharana@razorpay.com';
-
-    // Verify admin
-    const adminUser = await req.app.client.users.lookupByEmail({
-      token: process.env.SLACK_BOT_TOKEN,
-      email: adminEmail
-    });
-
-    if (!adminUser.ok || adminUser.user.id !== req.user.id) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
 
     const approval = await TaskApproval.findById(approvalId);
     if (!approval) {
@@ -92,35 +73,36 @@ router.post('/task-approval/:approvalId', authMiddleware, async (req, res) => {
     }
 
     approval.status = status;
-    approval.reviewedAt = new Date();
     approval.reviewedBy = req.user.id;
+    approval.reviewedAt = new Date();
     await approval.save();
 
-    // Update task status if approved
-    if (status === 'approved') {
-      await TaskStatus.findOneAndUpdate(
-        {
-          userId: approval.userId,
-          weekIndex: approval.weekIndex,
-          dayIndex: approval.dayIndex,
-          taskIndex: approval.taskIndex
-        },
-        { completed: true },
-        { upsert: true }
-      );
+    // Update task status
+    const taskStatus = await TaskStatus.findOne({
+      userId: approval.userId,
+      taskId: approval.taskId
+    });
+
+    if (taskStatus) {
+      taskStatus.completed = status === 'approved';
+      await taskStatus.save();
     }
 
     // Notify user
+    const message = status === 'approved'
+      ? `Your task completion request for "${approval.taskTitle}" has been approved!`
+      : `Your task completion request for "${approval.taskTitle}" has been rejected.`;
+
     await req.app.client.chat.postMessage({
       token: process.env.SLACK_BOT_TOKEN,
       channel: approval.userId,
-      text: `Your task completion request for "${approval.taskTitle}" has been ${status}.`
+      text: message
     });
 
-    res.status(200).json({ message: `Task ${status} successfully` });
+    res.json({ message: 'Task approval updated successfully' });
   } catch (error) {
-    console.error('Error processing task approval:', error);
-    res.status(500).json({ error: 'Error processing task approval' });
+    console.error('Error updating task approval:', error);
+    res.status(500).json({ error: 'Error updating task approval' });
   }
 });
 

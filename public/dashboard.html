@@ -164,68 +164,127 @@
     </div>
 
     <script>
-        // Check authentication
-        async function checkAuth() {
+        // Debug utilities
+        const DEBUG = true; // Set to false in production
+
+        function debugLog(...args) {
+            if (DEBUG) {
+                console.log('[DEBUG]', ...args);
+            }
+        }
+
+        function showError(message, duration = 5000) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded';
+            errorDiv.innerHTML = `
+                <strong class="font-bold">Error!</strong>
+                <span class="block sm:inline">${message}</span>
+            `;
+            document.body.appendChild(errorDiv);
+            setTimeout(() => errorDiv.remove(), duration);
+        }
+
+        // Enhanced fetch with better error handling
+        async function fetchWithAuth(url, options = {}) {
             const token = localStorage.getItem('token');
+            debugLog('Fetching:', url, 'with token:', token ? 'present' : 'missing');
+            
+            if (!token) {
+                showError('Authentication token missing. Please log in again.');
+                window.location.href = '/login.html';
+                return null;
+            }
+
+            const headers = {
+                ...options.headers,
+                'Authorization': `Bearer ${token}`
+            };
+
+            try {
+                const response = await fetch(url, { ...options, headers });
+                debugLog('Response status:', response.status, 'for URL:', url);
+
+                if (response.status === 401) {
+                    debugLog('Token expired or invalid');
+                    localStorage.removeItem('token');
+                    showError('Session expired. Please log in again.');
+                    window.location.href = '/login.html';
+                    return null;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                return response;
+            } catch (error) {
+                debugLog('Fetch error:', error);
+                showError(error.message || 'An error occurred while fetching data');
+                throw error;
+            }
+        }
+
+        // Check authentication with retry
+        async function checkAuth(retries = 3) {
+            const token = localStorage.getItem('token');
+            debugLog('Checking auth, token present:', !!token);
+
             if (!token) {
                 window.location.href = '/login.html';
                 return;
             }
 
-            try {
-                const response = await fetch('/auth/verify', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetchWithAuth('/auth/verify');
+                    if (response && response.ok) {
+                        debugLog('Auth check successful');
+                        return;
                     }
-                });
-
-                if (!response.ok) {
-                    localStorage.removeItem('token');
-                    window.location.href = '/login.html';
-                    return;
+                } catch (error) {
+                    debugLog(`Auth check attempt ${i + 1} failed:`, error);
+                    if (i === retries - 1) {
+                        localStorage.removeItem('token');
+                        window.location.href = '/login.html';
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
                 }
-            } catch (error) {
-                console.error('Auth check failed:', error);
-                localStorage.removeItem('token');
-                window.location.href = '/login.html';
             }
         }
 
-        // Add auth header to all fetch requests
-        async function fetchWithAuth(url, options = {}) {
-            const token = localStorage.getItem('token');
-            const headers = {
-                ...options.headers,
-                'Authorization': `Bearer ${token}`
-            };
-            return fetch(url, { ...options, headers });
-        }
-
-        // Update all fetch calls to use fetchWithAuth
+        // Enhanced data fetching functions
         async function fetchOverview() {
             try {
                 const response = await fetchWithAuth('/dashboard/overview');
+                if (!response) return;
+                
                 const data = await response.json();
+                debugLog('Overview data:', data);
                 
                 document.getElementById('pendingApprovals').textContent = data.pendingApprovals;
                 document.getElementById('totalUsers').textContent = data.totalUsers;
                 document.getElementById('taskCompletion').textContent = `${data.taskCompletion.rate.toFixed(1)}%`;
                 document.getElementById('checklistCompletion').textContent = `${data.checklistCompletion.rate.toFixed(1)}%`;
             } catch (error) {
-                console.error('Error fetching overview:', error);
+                debugLog('Error fetching overview:', error);
+                showError('Failed to load overview data');
             }
         }
 
         async function fetchUsers() {
             try {
                 const response = await fetchWithAuth('/dashboard/users');
+                if (!response) return;
+                
                 const users = await response.json();
+                debugLog('Users data:', users);
                 
                 const tbody = document.getElementById('usersTableBody');
                 tbody.innerHTML = users.map(user => `
                     <tr>
-                        <td class="px-6 py-4 whitespace-nowrap">${user.name}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">${user.email}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${user.name || 'Unknown'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${user.email || 'Unknown'}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center">
                                 <div class="w-full bg-gray-200 rounded-full h-2.5">
@@ -245,20 +304,24 @@
                     </tr>
                 `).join('');
             } catch (error) {
-                console.error('Error fetching users:', error);
+                debugLog('Error fetching users:', error);
+                showError('Failed to load user data');
             }
         }
 
         async function fetchApprovals() {
             try {
                 const response = await fetchWithAuth('/dashboard/approvals');
+                if (!response) return;
+                
                 const approvals = await response.json();
+                debugLog('Approvals data:', approvals);
                 
                 const tbody = document.getElementById('approvalsTableBody');
                 tbody.innerHTML = approvals.map(approval => `
                     <tr>
-                        <td class="px-6 py-4 whitespace-nowrap">${approval.userName}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">${approval.taskTitle}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${approval.userName || 'Unknown'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${approval.taskTitle || 'Unknown'}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                                 ${approval.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
@@ -283,12 +346,14 @@
                     </tr>
                 `).join('');
             } catch (error) {
-                console.error('Error fetching approvals:', error);
+                debugLog('Error fetching approvals:', error);
+                showError('Failed to load approval data');
             }
         }
 
         async function handleApproval(approvalId, status) {
             try {
+                debugLog('Handling approval:', approvalId, status);
                 const response = await fetchWithAuth(`/user-lookup/task-approval/${approvalId}`, {
                     method: 'POST',
                     headers: {
@@ -297,20 +362,24 @@
                     body: JSON.stringify({ status })
                 });
                 
-                if (response.ok) {
+                if (response && response.ok) {
+                    showError(`Task ${status} successfully`, 3000);
                     fetchApprovals();
                     fetchOverview();
                 }
             } catch (error) {
-                console.error('Error handling approval:', error);
+                debugLog('Error handling approval:', error);
+                showError('Failed to update approval status');
             }
         }
 
+        // Enhanced form submission
         document.getElementById('triggerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
             
             try {
+                debugLog('Triggering onboarding with data:', Object.fromEntries(formData));
                 const response = await fetchWithAuth('/dashboard/trigger-onboarding', {
                     method: 'POST',
                     headers: {
@@ -324,29 +393,38 @@
                     })
                 });
                 
-                if (response.ok) {
+                if (response && response.ok) {
+                    showError('Onboarding triggered successfully', 3000);
                     e.target.reset();
                     fetchOverview();
                     fetchUsers();
                 }
             } catch (error) {
-                console.error('Error triggering onboarding:', error);
+                debugLog('Error triggering onboarding:', error);
+                showError('Failed to trigger onboarding');
             }
         });
 
-        // Check auth on page load
-        checkAuth();
+        // Initialize with retry mechanism
+        async function initialize() {
+            await checkAuth();
+            await Promise.all([
+                fetchOverview(),
+                fetchUsers(),
+                fetchApprovals()
+            ]);
+        }
 
-        // Initial data load
-        fetchOverview();
-        fetchUsers();
-        fetchApprovals();
+        // Start initialization
+        initialize();
 
         // Refresh data every 30 seconds
         setInterval(() => {
-            fetchOverview();
-            fetchUsers();
-            fetchApprovals();
+            if (document.visibilityState === 'visible') {
+                fetchOverview();
+                fetchUsers();
+                fetchApprovals();
+            }
         }, 30000);
     </script>
 </body>
