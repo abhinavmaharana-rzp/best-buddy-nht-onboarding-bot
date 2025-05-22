@@ -11,11 +11,30 @@ const router = express.Router();
 // Debug logging
 const DEBUG = true;
 
+// Simple in-memory cache
+const cache = {
+    overview: { data: null, timestamp: null },
+    users: { data: null, timestamp: null },
+    approvals: { data: null, timestamp: null }
+};
+
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 function debugLog(...args) {
     if (DEBUG) {
         console.log('[DEBUG]', ...args);
     }
 }
+
+// Cache middleware
+const cacheMiddleware = (key) => async (req, res, next) => {
+    const cachedData = cache[key];
+    if (cachedData && cachedData.timestamp && (Date.now() - cachedData.timestamp < CACHE_DURATION)) {
+        debugLog(`Serving ${key} from cache`);
+        return res.json(cachedData.data);
+    }
+    next();
+};
 
 // Error handling middleware
 const errorHandler = (err, req, res, next) => {
@@ -54,6 +73,38 @@ const authMiddleware = (req, res, next) => {
     }
 };
 
+// Helper function to get user info from Slack
+async function getUserInfo(client, userId) {
+    try {
+        const userInfo = await client.users.info({
+            token: process.env.SLACK_BOT_TOKEN,
+            user: userId
+        });
+
+        if (!userInfo.ok) {
+            throw new Error(userInfo.error);
+        }
+
+        return {
+            name: userInfo.user.profile.real_name,
+            email: userInfo.user.profile.email,
+            function: userInfo.user.profile.fields?.Xf0DMHFDQA?.value || 'Unknown',
+            subFunction: userInfo.user.profile.fields?.Xf0DMHFDQB?.value || 'Unknown'
+        };
+    } catch (error) {
+        debugLog(`Error fetching user info for ${userId}:`, error);
+        return { name: 'Unknown User', email: 'Unknown', function: 'Unknown', subFunction: 'Unknown' };
+    }
+}
+
+// Helper function to calculate progress
+function calculateProgress(items) {
+    const total = items.length;
+    const completed = items.filter(item => item.completed).length;
+    const percentage = total ? (completed / total) * 100 : 0;
+    return { total, completed, percentage };
+}
+
 /**
  * @swagger
  * /dashboard/overview:
@@ -63,47 +114,38 @@ const authMiddleware = (req, res, next) => {
  *     security:
  *       - bearerAuth: []
  */
-router.get('/overview', authMiddleware, async (req, res, next) => {
+router.get('/overview', authMiddleware, cacheMiddleware('overview'), async (req, res) => {
     try {
         debugLog('Fetching overview data');
         
-        // Get pending approvals count
-        const pendingApprovals = await TaskApproval.countDocuments({ status: 'pending' });
-        debugLog('Pending approvals count:', pendingApprovals);
+        const [pendingApprovals, uniqueUsers, allTasks, allChecklistItems] = await Promise.all([
+            TaskApproval.countDocuments({ status: 'pending' }),
+            TaskStatus.distinct('userId'),
+            TaskStatus.find(),
+            ChecklistItem.find()
+        ]);
 
-        // Get total users with tasks
-        const uniqueUsers = await TaskStatus.distinct('userId');
-        debugLog('Unique users count:', uniqueUsers.length);
+        const taskProgress = calculateProgress(allTasks);
+        const checklistProgress = calculateProgress(allChecklistItems);
 
-        // Get completion statistics
-        const totalTasks = await TaskStatus.countDocuments();
-        const completedTasks = await TaskStatus.countDocuments({ completed: true });
-        const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-        debugLog('Task completion stats:', { totalTasks, completedTasks, completionRate });
-
-        // Get checklist completion statistics
-        const totalChecklistItems = await ChecklistItem.countDocuments();
-        const completedChecklistItems = await ChecklistItem.countDocuments({ completed: true });
-        const checklistCompletionRate = totalChecklistItems > 0 ? (completedChecklistItems / totalChecklistItems) * 100 : 0;
-        debugLog('Checklist completion stats:', { totalChecklistItems, completedChecklistItems, checklistCompletionRate });
-
-        res.status(200).json({
+        const overviewData = {
             pendingApprovals,
             totalUsers: uniqueUsers.length,
-            taskCompletion: {
-                total: totalTasks,
-                completed: completedTasks,
-                rate: completionRate
-            },
-            checklistCompletion: {
-                total: totalChecklistItems,
-                completed: completedChecklistItems,
-                rate: checklistCompletionRate
-            }
-        });
+            taskCompletion: taskProgress,
+            checklistCompletion: checklistProgress,
+            lastUpdated: new Date().toISOString()
+        };
+
+        // Update cache
+        cache.overview = {
+            data: overviewData,
+            timestamp: Date.now()
+        };
+
+        res.json(overviewData);
     } catch (error) {
-        debugLog('Error in overview route:', error);
-        next(error);
+        console.error('[DEBUG] Error fetching overview:', error);
+        res.status(500).json({ error: 'Error fetching overview data' });
     }
 });
 
@@ -116,107 +158,45 @@ router.get('/overview', authMiddleware, async (req, res, next) => {
  *     security:
  *       - bearerAuth: []
  */
-router.get('/users', authMiddleware, async (req, res, next) => {
+router.get('/users', authMiddleware, cacheMiddleware('users'), async (req, res) => {
     try {
         debugLog('Fetching users data');
         const users = await TaskStatus.distinct('userId');
-        debugLog('Found users:', users.length);
 
-        const userProgress = [];
-        for (const userId of users) {
+        const userDetails = await Promise.all(users.map(async (userId) => {
             try {
-                const tasks = await TaskStatus.find({ userId });
-                const checklistItems = await ChecklistItem.find({ userId });
+                const [userInfo, tasks, checklistItems] = await Promise.all([
+                    getUserInfo(req.app.client, userId),
+                    TaskStatus.find({ userId }),
+                    ChecklistItem.find({ userId })
+                ]);
 
-                const totalTasks = tasks.length;
-                const completedTasks = tasks.filter(task => task.completed).length;
-                const totalChecklistItems = checklistItems.length;
-                const completedChecklistItems = checklistItems.filter(item => item.completed).length;
-
-                // Get user info from Slack
-                const userInfo = await req.app.client.users.info({
-                    token: process.env.SLACK_BOT_TOKEN,
-                    user: userId
-                });
-
-                if (userInfo.ok) {
-                    userProgress.push({
-                        userId,
-                        name: userInfo.user.profile.real_name,
-                        email: userInfo.user.profile.email,
-                        taskProgress: {
-                            total: totalTasks,
-                            completed: completedTasks,
-                            rate: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
-                        },
-                        checklistProgress: {
-                            total: totalChecklistItems,
-                            completed: completedChecklistItems,
-                            rate: totalChecklistItems > 0 ? (completedChecklistItems / totalChecklistItems) * 100 : 0
-                        }
-                    });
-                    debugLog('Processed user:', userId);
-                } else {
-                    debugLog('Failed to get Slack info for user:', userId);
-                }
-            } catch (userError) {
-                debugLog('Error processing user:', userId, userError);
-                // Continue with next user
+                return {
+                    id: userId,
+                    ...userInfo,
+                    taskProgress: calculateProgress(tasks),
+                    checklistProgress: calculateProgress(checklistItems),
+                    lastUpdated: new Date().toISOString()
+                };
+            } catch (error) {
+                debugLog(`Error processing user: ${userId}`, error);
+                return null;
             }
-        }
+        }));
 
-        res.status(200).json(userProgress);
+        const validUserDetails = userDetails.filter(user => user !== null);
+
+        // Update cache
+        cache.users = {
+            data: validUserDetails,
+            timestamp: Date.now()
+        };
+
+        res.json(validUserDetails);
     } catch (error) {
-        debugLog('Error in users route:', error);
-        next(error);
+        console.error('[DEBUG] Error fetching users:', error);
+        res.status(500).json({ error: 'Error fetching users' });
     }
-});
-
-/**
-router.get('/users', authMiddleware, async (req, res) => {
-  try {
-    const users = await TaskStatus.distinct('userId');
-    const userProgress = [];
-
-    for (const userId of users) {
-      const tasks = await TaskStatus.find({ userId });
-      const checklistItems = await ChecklistItem.find({ userId });
-
-      const totalTasks = tasks.length;
-      const completedTasks = tasks.filter(task => task.completed).length;
-      const totalChecklistItems = checklistItems.length;
-      const completedChecklistItems = checklistItems.filter(item => item.completed).length;
-
-      // Get user info from Slack
-      const userInfo = await req.app.client.users.info({
-        token: process.env.SLACK_BOT_TOKEN,
-        user: userId
-      });
-
-      if (userInfo.ok) {
-        userProgress.push({
-          userId,
-          name: userInfo.user.profile.real_name,
-          email: userInfo.user.profile.email,
-          taskProgress: {
-            total: totalTasks,
-            completed: completedTasks,
-            rate: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
-          },
-          checklistProgress: {
-            total: totalChecklistItems,
-            completed: completedChecklistItems,
-            rate: totalChecklistItems > 0 ? (completedChecklistItems / totalChecklistItems) * 100 : 0
-          }
-        });
-      }
-    }
-
-    res.status(200).json(userProgress);
-  } catch (error) {
-    console.error('Error fetching user progress:', error);
-    res.status(500).json({ error: 'Error fetching user progress' });
-  }
 });
 
 /**
@@ -228,35 +208,92 @@ router.get('/users', authMiddleware, async (req, res) => {
  *     security:
  *       - bearerAuth: []
  */
-router.get('/approvals', authMiddleware, async (req, res) => {
-  try {
-    const approvals = await TaskApproval.find()
-      .sort({ requestedAt: -1 });
+router.get('/approvals', authMiddleware, cacheMiddleware('approvals'), async (req, res) => {
+    try {
+        const approvals = await TaskApproval.find()
+            .sort({ createdAt: -1 })
+            .lean();
 
-    const approvalDetails = await Promise.all(approvals.map(async (approval) => {
-      const userInfo = await req.app.client.users.info({
-        token: process.env.SLACK_BOT_TOKEN,
-        user: approval.userId
-      });
+        const approvalDetails = await Promise.all(approvals.map(async (approval) => {
+            try {
+                const [userInfo, reviewerInfo] = await Promise.all([
+                    getUserInfo(req.app.client, approval.userId),
+                    approval.reviewedBy ? getUserInfo(req.app.client, approval.reviewedBy) : null
+                ]);
 
-      const reviewerInfo = approval.reviewedBy ? await req.app.client.users.info({
-        token: process.env.SLACK_BOT_TOKEN,
-        user: approval.reviewedBy
-      }) : null;
+                return {
+                    ...approval,
+                    user: userInfo,
+                    reviewer: reviewerInfo,
+                    lastUpdated: new Date().toISOString()
+                };
+            } catch (error) {
+                debugLog(`Error fetching approval details for ${approval._id}:`, error);
+                return {
+                    ...approval,
+                    user: { name: 'Unknown User', email: 'Unknown' },
+                    reviewer: null,
+                    lastUpdated: new Date().toISOString()
+                };
+            }
+        }));
 
-      return {
-        ...approval.toObject(),
-        userName: userInfo.ok ? userInfo.user.profile.real_name : 'Unknown',
-        userEmail: userInfo.ok ? userInfo.user.profile.email : 'Unknown',
-        reviewerName: reviewerInfo?.ok ? reviewerInfo.user.profile.real_name : null
-      };
-    }));
+        // Update cache
+        cache.approvals = {
+            data: approvalDetails,
+            timestamp: Date.now()
+        };
 
-    res.status(200).json(approvalDetails);
-  } catch (error) {
-    console.error('Error fetching approval details:', error);
-    res.status(500).json({ error: 'Error fetching approval details' });
-  }
+        res.json(approvalDetails);
+    } catch (error) {
+        console.error('Error fetching approval details:', error);
+        res.status(500).json({ error: 'Error fetching approval details' });
+    }
+});
+
+/**
+ * @swagger
+ * /dashboard/user/{userId}:
+ *   get:
+ *     summary: Get detailed information for a specific user
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/user/:userId', authMiddleware, async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const [userInfo, tasks, checklistItems, approvals] = await Promise.all([
+            getUserInfo(req.app.client, userId),
+            TaskStatus.find({ userId }).sort({ weekIndex: 1, dayIndex: 1, taskIndex: 1 }),
+            ChecklistItem.find({ userId }),
+            TaskApproval.find({ userId }).sort({ createdAt: -1 })
+        ]);
+
+        const response = {
+            user: {
+                id: userId,
+                ...userInfo
+            },
+            progress: {
+                tasks: calculateProgress(tasks),
+                checklist: calculateProgress(checklistItems)
+            },
+            recentActivity: approvals.map(approval => ({
+                taskTitle: approval.taskTitle,
+                status: approval.status,
+                createdAt: approval.createdAt,
+                reviewedAt: approval.reviewedAt
+            })),
+            lastUpdated: new Date().toISOString()
+        };
+
+        res.json(response);
+    } catch (error) {
+        console.error(`Error fetching user details for ${req.params.userId}:`, error);
+        res.status(500).json({ error: 'Error fetching user details' });
+    }
 });
 
 /**
@@ -269,26 +306,33 @@ router.get('/approvals', authMiddleware, async (req, res) => {
  *       - bearerAuth: []
  */
 router.post('/trigger-onboarding', authMiddleware, async (req, res) => {
-  try {
-    const { email, function: userFunction, subFunction, userName } = req.body;
+    try {
+        const { email, function: userFunction, subFunction, userName } = req.body;
 
-    const user = await req.app.client.users.lookupByEmail({
-      token: process.env.SLACK_BOT_TOKEN,
-      email
-    });
+        const user = await req.app.client.users.lookupByEmail({
+            token: process.env.SLACK_BOT_TOKEN,
+            email
+        });
 
-    if (!user.ok) {
-      return res.status(404).json({ error: 'User not found' });
+        if (!user.ok) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const userId = user.user.id;
+        await sendOnboardingPlan(req.app, userId, { userName, userFunction, subFunction });
+
+        // Clear relevant caches
+        cache.overview = { data: null, timestamp: null };
+        cache.users = { data: null, timestamp: null };
+
+        res.status(200).json({ message: 'Onboarding plan triggered successfully' });
+    } catch (error) {
+        console.error('Error triggering onboarding:', error);
+        res.status(500).json({ error: 'Error triggering onboarding' });
     }
-
-    const userId = user.user.id;
-    await sendOnboardingPlan(req.app, userId, { userName, userFunction, subFunction });
-
-    res.status(200).json({ message: 'Onboarding plan triggered successfully' });
-  } catch (error) {
-    console.error('Error triggering onboarding:', error);
-    res.status(500).json({ error: 'Error triggering onboarding' });
-  }
 });
+
+// Apply error handling middleware
+router.use(errorHandler);
 
 module.exports = router; 
