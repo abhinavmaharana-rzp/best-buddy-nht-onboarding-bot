@@ -877,6 +877,7 @@ const approvalId = segments[2];
 
     if (!day || !day.events) {
       await client.chat.postMessage({
+        token: process.env.SLACK_BOT_TOKEN,
         channel: body.user.id,
         text: "Unable to load the day's tasks. Please try again later.",
       });
@@ -930,10 +931,9 @@ const approvalId = segments[2];
       }
     ];
 
-    await client.chat.update({
+    await client.chat.postMessage({
       token: process.env.SLACK_BOT_TOKEN,
-      channel: body.channel.id,
-      ts: body.message.ts,
+      channel: body.user.id,
       text: `Tasks for ${day.day}`,
       blocks: taskBlocks,
     });
