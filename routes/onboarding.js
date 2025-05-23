@@ -943,6 +943,57 @@ const approvalId = segments[2];
   boltApp.action(/back_to_week_(\d+)/, async ({ ack, body, client }) => {
     await ack();
     const userId = body.user.id;
+    const weekIndex = parseInt(body.actions[0].action_id.split('_')[3]);
+
+    // Get user's subfunction from TaskStatus or another source
+    const userTask = await TaskStatus.findOne({ userId });
+    const subFunction = userTask?.subFunction || 'default';
+
+    // Select the appropriate onboarding data
+    const selectedOnboardingData = subFunction === 'SR' ? srOnboardingData : onboardingData;
+    const selectedWeek = selectedOnboardingData[weekIndex];
+
+    if (!selectedWeek || !selectedWeek.days) {
+      await client.chat.postMessage({
+        token: process.env.SLACK_BOT_TOKEN,
+        channel: body.user.id,
+        text: "Sorry, we couldn't fetch the events for this week."
+      });
+      return;
+    }
+
+    // Create day buttons for the selected week
+    const dayButtons = selectedWeek.days.map((day, index) => ({
+      type: 'button',
+      text: { type: 'plain_text', text: day.day },
+      action_id: `show_day_${weekIndex}_${index}`
+    }));
+
+    // Create navigation buttons
+    const navigationButtons = [
+      {
+        type: 'button',
+        text: { type: 'plain_text', text: '📅 Back to All Weeks', emoji: true },
+        action_id: 'show_all_weeks'
+      }
+    ];
+
+    await client.chat.postMessage({
+      token: process.env.SLACK_BOT_TOKEN,
+      channel: body.user.id,
+      text: `Here's the schedule for *${selectedWeek.week}*.`,
+      blocks: [
+        { type: 'section', text: { type: 'mrkdwn', text: `Here's the schedule for *${selectedWeek.week}*.` } },
+        { type: 'actions', elements: dayButtons },
+        { type: 'actions', elements: navigationButtons }
+      ]
+    });
+  });
+
+  // Add new action handler for showing all weeks
+  boltApp.action('show_all_weeks', async ({ ack, body, client }) => {
+    await ack();
+    const userId = body.user.id;
 
     // Get user's subfunction from TaskStatus or another source
     const userTask = await TaskStatus.findOne({ userId });
