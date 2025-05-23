@@ -298,18 +298,18 @@ module.exports = (boltApp) => {
           text: '✅ *Your First Week Tasks*'
         }
       },
-      ...checklistItems.map(item => ({
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `- ${item.task}`
-        },
-        accessory: {
-          type: 'button',
-          text: { type: 'plain_text', text: 'Mark Complete', emoji: true },
-          action_id: `complete_checklist_item_${item._id}`
-        }
-      }))
+      ...checklistItems
+        .filter(item => item && item._id) 
+        .map(item => ({
+          type: 'section',
+          text: { type: 'mrkdwn', text: `- ${item.task}` },
+          accessory: {
+            type: 'button',
+            text: { type: 'plain_text', text: 'Mark Complete', emoji: true },
+            action_id: `complete_checklist_item_${item._id}`
+          }
+        })
+      )
     ];
   };
 
@@ -606,6 +606,16 @@ module.exports = (boltApp) => {
       }
 
       // Create approval request
+      const existing = await TaskApproval.findOne({ userId, weekIndex, dayIndex, taskIndex });
+        if (existing) {
+          console.warn('Approval request already exists:', existing._id);
+          await client.chat.postMessage({
+            token: process.env.SLACK_BOT_TOKEN,
+            channel: userId,
+            text: `⚠️ You've already requested completion approval for "${task.title}".`
+          });
+        return;
+      }
       const approval = new TaskApproval({
         userId,
         taskTitle: task.title,
@@ -616,6 +626,7 @@ module.exports = (boltApp) => {
         channelId: body.channel.id
       });
       await approval.save();
+      console.log('Approval request created:', approval._id);
 
       // Notify admin
       const adminEmail = 'abhinav.maharana@razorpay.com';
@@ -627,10 +638,11 @@ module.exports = (boltApp) => {
       if (adminUser.ok) {
         const adminBlocks = createApprovalBlocks(
           userId,
-          task,
+          { ...task, _id: approval._id.toString() },
           onboardingData[weekIndex].week,
           onboardingData[weekIndex].days[dayIndex].day
         );
+
 
         await client.chat.postMessage({
           token: process.env.SLACK_BOT_TOKEN,
@@ -669,7 +681,14 @@ module.exports = (boltApp) => {
   // Handle admin approval/rejection
   boltApp.action(/approve_task_(.+)/, async ({ ack, body, client }) => {
     await ack();
-    const approvalId = body.actions[0].action_id.split('_')[2];
+    const segments = body.actions[0].action_id.split('_');
+    if (segments.length < 3 || !segments[2]) {
+      console.error("Invalid action_id format:", body.actions[0].action_id);
+      return;
+    }
+    const approvalId = segments[2];
+
+    // const approvalId = body.actions[0].action_id.split('_')[2];
     
     try {
       const approval = await TaskApproval.findById(approvalId);
@@ -700,6 +719,12 @@ module.exports = (boltApp) => {
       
       // Update original message
       const statusBlocks = createTaskStatusBlocks(approvedTask, 'completed', approval.weekIndex, approval.dayIndex, approval.taskIndex);
+
+      if (!client?.chat?.postMessage || !client?.chat?.update) {
+  console.error("Slack client is not properly initialized.");
+  return;
+}
+
       await client.chat.update({
         token: process.env.SLACK_BOT_TOKEN,
         channel: approval.channelId,
@@ -744,7 +769,18 @@ module.exports = (boltApp) => {
   // Handle admin rejection
   boltApp.action(/reject_task_(.+)/, async ({ ack, body, client }) => {
     await ack();
-    const approvalId = body.actions[0].action_id.split('_')[2];
+    const segments = body.actions[0].action_id.split('_');
+if (segments.length < 3 || !segments[2] || segments[2] === 'undefined') {
+  console.error("Invalid action_id format:", body.actions[0].action_id);
+  await client.chat.postMessage({
+    token: process.env.SLACK_BOT_TOKEN,
+    channel: body.user.id,
+    text: 'Invalid rejection request. Please try again.'
+  });
+  return;
+}
+const approvalId = segments[2];
+
     
     try {
       const approval = await TaskApproval.findById(approvalId);
@@ -774,6 +810,11 @@ module.exports = (boltApp) => {
           }
         }
       ];
+
+      if (!client?.chat?.postMessage || !client?.chat?.update) {
+  console.error("Slack client is not properly initialized.");
+  return;
+}
 
       await client.chat.update({
         token: process.env.SLACK_BOT_TOKEN,

@@ -86,10 +86,10 @@ async function getUserInfo(client, userId) {
         }
 
         return {
-            name: userInfo.user.profile.real_name,
-            email: userInfo.user.profile.email,
-            function: userInfo.user.profile.fields?.Xf0DMHFDQA?.value || 'Unknown',
-            subFunction: userInfo.user.profile.fields?.Xf0DMHFDQB?.value || 'Unknown'
+            name: userInfo?.user.profile.real_name,
+            email: userInfo?.user.profile.email,
+            function: userInfo?.user.profile.fields?.Xf0DMHFDQA?.value || 'Unknown',
+            subFunction: userInfo?.user.profile.fields?.Xf0DMHFDQB?.value || 'Unknown'
         };
     } catch (error) {
         debugLog(`Error fetching user info for ${userId}:`, error);
@@ -281,10 +281,10 @@ router.get('/user/:userId', authMiddleware, async (req, res) => {
                 checklist: calculateProgress(checklistItems)
             },
             recentActivity: approvals.map(approval => ({
-                taskTitle: approval.taskTitle,
-                status: approval.status,
-                createdAt: approval.createdAt,
-                reviewedAt: approval.reviewedAt
+                taskTitle: approval?.taskTitle,
+                status: approval?.status,
+                createdAt: approval?.createdAt,
+                reviewedAt: approval?.reviewedAt
             })),
             lastUpdated: new Date().toISOString()
         };
