@@ -941,38 +941,33 @@ const approvalId = segments[2];
 
 
   boltApp.action(/back_to_week_(\d+)/, async ({ ack, body, client }) => {
-  await ack();
-  const actionId = body.actions[0].action_id;
-  const weekIndex = parseInt(actionId.split('_')[3] || actionId.split('_')[2], 10); // fallback logic
+    await ack();
+    const userId = body.user.id;
 
-  const selectedWeek = onboardingData[weekIndex];
+    // Get user's subfunction from TaskStatus or another source
+    const userTask = await TaskStatus.findOne({ userId });
+    const subFunction = userTask?.subFunction || 'default';
 
-  if (!selectedWeek || !selectedWeek.days) {
+    // Select the appropriate onboarding data
+    const selectedOnboardingData = subFunction === 'SR' ? srOnboardingData : onboardingData;
+
+    // Create week buttons for all weeks
+    const weekButtons = selectedOnboardingData.map((weekData, index) => ({
+      type: 'button',
+      text: { type: 'plain_text', text: weekData.week, emoji: true },
+      action_id: `show_week_${index}`
+    }));
+
     await client.chat.postMessage({
+      token: process.env.SLACK_BOT_TOKEN,
       channel: body.user.id,
-      text: "Unable to load the week. Please try again later.",
+      text: 'Select a week to view its schedule:',
+      blocks: [
+        { type: 'section', text: { type: 'mrkdwn', text: 'Select a week to view its schedule:' } },
+        { type: 'actions', elements: weekButtons }
+      ]
     });
-    return;
-  }
-
-  const dayButtons = selectedWeek.days.map((day, index) => ({
-    type: 'button',
-    text: { type: 'plain_text', text: day.day },
-    action_id: `show_day_${weekIndex}_${index}`,
-  }));
-
-  await client.chat.postMessage({
-    channel: body.user.id,
-    text: `Here's the schedule for *${selectedWeek.week}*. Please choose a day to see the tasks.`,
-    blocks: [
-      {
-        type: 'section',
-        text: { type: 'mrkdwn', text: `Here's the schedule for *${selectedWeek.week}*.` },
-      },
-      { type: 'actions', elements: dayButtons }
-    ],
   });
-});
 
 /**
  * @swagger
