@@ -368,7 +368,7 @@ module.exports = (boltApp) => {
         elements: [
           {
             type: 'button',
-            text: { type: 'plain_text', text: '📅 Back to Week', emoji: true },
+            text: { type: 'plain_text', text: '📅 Back to Day', emoji: true },
             action_id: `back_to_week_${weekIndex}`
           }
         ]
