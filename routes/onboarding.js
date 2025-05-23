@@ -274,9 +274,10 @@ module.exports = (boltApp) => {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: '📚 *Your Superpowers – Tool Access*\nGet access to the essential tools for your journey:\n• Freshdesk\n• Admin Dashboard\n• Merchant Dashboard\n• Coralogix\n• Querybook'
+          text: `🛠️ *Your Superpowers – Tool Access*\nHere are the essential tools to power up your journey at Razorpay:\n\n• 🔧 *Freshdesk* – Access will be handled by Team\n• 🛡️ *Admin Dashboard* – Access will be handled by L&D\n• 💼 *Merchant Dashboard* – Access will be handled by L&D\n• 📊 *Coralogix* – <https://docs.google.com/document/d/1DFDoyQRYPN0o5iYMZrSLDy1bsIwLIHX6snpjssuSBLs/edit?usp=sharing|Access>\n• 🔍 *Querybook* – <https://docs.google.com/document/d/1DFDoyQRYPN0o5iYMZrSLDy1bsIwLIHX6snpjssuSBLs/edit?usp=sharing|Access>`
         }
       },
+
       { type: 'divider' },
       {
         type: 'section',
@@ -287,9 +288,10 @@ module.exports = (boltApp) => {
         accessory: {
           type: 'button',
           text: { type: 'plain_text', text: 'Join Channels', emoji: true },
-          action_id: 'join_channels'
+          url: 'https://slack.com/shortcuts/Ft08KB7PQWHE/7f10ed434d83c141dade075bc6dc7247' // Add this URL
         }
       },
+
       { type: 'divider' },
       {
         type: 'section',
