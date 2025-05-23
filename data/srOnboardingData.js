@@ -15,32 +15,30 @@ module.exports = [
         day: 'Day 2',
         time: '10:30 AM - 1:30 PM',
         events: [
-          { title: 'Sales Fundamentals', owner: 'Sales Team Lead', mode: 'Video + In-Person' },
-          { title: 'Product Knowledge - Payments', owner: 'Product Team', mode: 'Video + In-Person' },
+          { title: 'Fintech 101', owner: 'Abhinav Maharana', link: 'https://learnx.disprz.com/#!/module/1347', mode: 'Video + In-Person' },
+          { title: 'Know your Leaders', owner: 'Lera P', mode: 'Video + In-Person' },
         ],
       },
       {
         day: 'Day 3',
         time: '10:30 AM - 1:30 PM',
         events: [
-          { title: 'CRM Training', owner: 'Sales Ops', mode: 'Video + In-Person' },
-          { title: 'Sales Process & Tools', owner: 'Sales Team Lead', mode: 'Video + In-Person' },
+          { title: 'Core Payments', owner: 'Abhinav Maharana', link: 'https://learnx.disprz.com/#!/module/1348', mode: 'Video + In-Person' },
+          { title: 'Methods - Features', owner: 'Abhinav Maharana', link: 'https://learnx.disprz.com/#!/module/1349', mode: 'Video + In-Person' },
         ],
       },
       {
         day: 'Day 4',
         time: '10:30 AM - 1:30 PM',
         events: [
-          { title: 'Lead Generation & Prospecting', owner: 'Sales Team Lead', mode: 'Video + In-Person' },
-          { title: 'Sales Pitch Practice', owner: 'Sales Team Lead', mode: 'In-Person' },
+          { title: 'Core Payments and Platform', owner: 'Abhinav Maharana',link: 'https://learnx.disprz.com/#!/module/1351', mode: 'Video + In-Person' },
         ],
       },
       {
         day: 'Day 5',
         time: '10:30 AM - 1:30 PM',
         events: [
-          { title: 'Objection Handling', owner: 'Sales Team Lead', mode: 'Video + In-Person' },
-          { title: 'Closing Techniques', owner: 'Sales Team Lead', mode: 'In-Person' },
+          { title: 'Recurring', owner: 'Abhinav Maharana',link: 'https://learnx.disprz.com/#!/module/1352', mode: 'Video + In-Person' },
         ],
       },
     ],
