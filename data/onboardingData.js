@@ -17,7 +17,7 @@ module.exports = [
         time: '10:30 AM - 1:30 PM',
         events: [
           { title: 'Fintech 101', owner: 'Abhinav Maharana', link: 'https://learnx.disprz.com/#!/module/1347', mode: 'Video + In-Person' },
-          { title: 'Know your Leaders', owner: 'Lera P', mode: 'Video + In-Person' },
+          { title: 'Know your Leaders', owner: 'Lera P', mode: 'In-Person' },
         ],
       },
       {
@@ -34,14 +34,14 @@ module.exports = [
         time: '10:30 AM - 1:30 PM',
         events: [
           { title: 'Core Payments and Platform', owner: 'Abhinav Maharana',link: 'https://learnx.disprz.com/#!/module/1351', mode: 'Video + In-Person' },
-          { title: 'Understanding API calling in Postman (with hands-on demo)', owner: 'Abhinav Maharana', mode: 'Video + In-Person' },
+          { title: 'Understanding API calling in Postman (with hands-on demo)', owner: 'Abhinav Maharana', mode: 'In-Person' },
         ],
       },
       {
         day: 'Day 5',
         time: '10:30 AM - 1:30 PM',
         events: [
-          { title: 'Understanding of standard checkout in Web (with integration hand-on)', owner: 'Abhinav Maharana', mode: 'Video + In-Person' },
+          { title: 'Understanding of standard checkout in Web (with integration hand-on)', owner: 'Abhinav Maharana', mode: 'In-Person' },
         ],
       },
       {
@@ -62,21 +62,21 @@ module.exports = [
         day: 'Day 6',
         time: '10:30 AM - 1:30 PM',
         events: [
-          { title: 'Understanding of standard checkout in Android and IOS (with integration hand-on)', owner: 'Abhinav Maharana',link: '', mode: 'Video + In-Person' },
+          { title: 'Understanding of standard checkout in Android and IOS (with integration hand-on)', owner: 'Abhinav Maharana',link: '', mode: 'In-Person' },
         ],
       },
       {
         day: 'Day 7',
         time: '10:30 AM - 1:30 PM',
         events: [
-          { title: 'Understanding of custom in web (integration hands-on)', owner: 'Abhinav Maharana',link: '', mode: 'Video + In-Person' },
+          { title: 'Understanding of custom in web (integration hands-on)', owner: 'Abhinav Maharana',link: '', mode: 'In-Person' },
         ],
       },
       {
         day: 'Day 8',
         time: '10:30 AM - 1:30 PM',
         events: [
-          { title: 'Understanding of custom in android and ios (integration hands-on)', owner: 'Abhinav Maharana',link: '', mode: 'Video + In-Person' },
+          { title: 'Understanding of custom in android and ios (integration hands-on)', owner: 'Abhinav Maharana',link: '', mode: 'In-Person' },
         ],
       },
       {
@@ -111,28 +111,28 @@ module.exports = [
         day: 'Day 11',
         time: '10:30 AM - 1:30 PM',
         events: [
-          { title: 'Merchant and Admin Dashboard', owner: 'Abhinav Maharana',link: '', mode: 'Video + In-Person' },
+          { title: 'Merchant and Admin Dashboard', owner: 'Abhinav Maharana',link: '', mode: 'In-Person' },
         ],
       },
       {
         day: 'Day 12',
         time: '10:30 AM - 1:30 PM',
         events: [
-          { title: 'Freshdesk and Jira', owner: 'Abhinav Maharana',link: '', mode: 'Video + In-Person' },
+          { title: 'Freshdesk and Jira', owner: 'Abhinav Maharana',link: '', mode: 'In-Person' },
         ],
       },
       {
         day: 'Day 13',
         time: '10:30 AM - 1:30 PM',
         events: [
-          { title: 'Coralogix and Querybook', owner: 'Abhinav Maharana',link: '', mode: 'Video + In-Person' },
+          { title: 'Coralogix and Querybook', owner: 'Abhinav Maharana',link: '', mode: 'In-Person' },
         ],
       },
       {
         day: 'Day 14',
         time: '10:30 AM - 1:30 PM',
         events: [
-          { title: 'Training on sample tickets and department hands-on',link: '', owner: 'Abhinav Maharana', mode: 'Video + In-Person' },
+          { title: 'Training on sample tickets and department hands-on',link: '', owner: 'Abhinav Maharana', mode: 'In-Person' },
         ],
       },
       {

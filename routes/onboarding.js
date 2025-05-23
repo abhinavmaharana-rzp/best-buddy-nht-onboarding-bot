@@ -338,6 +338,14 @@ module.exports = (boltApp) => {
   };
 
   const createTaskBlocks = (day, completedTaskIndices, weekIndex, dayIndex) => {
+    // List of tasks that should not have the Mark Complete button
+    const noMarkCompleteTasks = [
+      'Razorpay Orientation and Culture',
+      'Functional Orientation',
+      'Mandatory Trainings Allocation',
+      'Know your Leaders'
+    ];
+
     return [
       {
         type: 'section',
@@ -350,9 +358,9 @@ module.exports = (boltApp) => {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `*${i + 1}. ${event.title}*\nOwner: ${event.owner}\nMode: ${event.mode}${event.link ? `\n🔗 <${event.link}|View Resource>` : ''}${completedTaskIndices.has(i) ? ' ✓' : ''}`
+          text: `*${i + 1}. ${event.title}*\nOwner: ${event.owner}\nMode: ${event.mode}${event.link ? `\n🔗 <${event.link}|Start Session>` : ''}${completedTaskIndices.has(i) ? ' ✓' : ''}`
         },
-        accessory: completedTaskIndices.has(i) ? {
+        accessory: noMarkCompleteTasks.includes(event.title) ? null : (completedTaskIndices.has(i) ? {
           type: 'button',
           text: { type: 'plain_text', text: '✓', emoji: true },
           action_id: `task_completed_${weekIndex}_${dayIndex}_${i}`,
@@ -361,7 +369,7 @@ module.exports = (boltApp) => {
           type: 'button',
           text: { type: 'plain_text', text: 'Mark Complete', emoji: true },
           action_id: `mark_complete_${weekIndex}_${dayIndex}_${i}`
-        }
+        })
       })),
       {
         type: 'actions',
