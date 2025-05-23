@@ -6,4 +6,4 @@ module.exports = [
     { text: { type: 'plain_text', text: 'Tools Access' }, value: 'tools' },
     { text: { type: 'plain_text', text: 'Join Slack Channels' }, value: 'slack' },
     { text: { type: 'plain_text', text: 'Crash course in fintech' }, value: 'fintech' }
-  ];
+];

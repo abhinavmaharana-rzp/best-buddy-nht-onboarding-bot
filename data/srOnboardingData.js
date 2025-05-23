@@ -9,7 +9,6 @@ module.exports = [
           { title: 'Razorpay Orientation and Culture', owner: 'Central HR / L&D', mode: 'In-Person' },
           { title: 'Functional Orientation', owner: 'Central HR / L&D', mode: 'In-Person' },
           { title: 'Mandatory Trainings Allocation', owner: 'Central HR / L&D', mode: 'In-Person' },
-          { title: 'NHT Welcome Mail', owner: 'Central HR / L&D', mode: 'In-Person' },
         ],
       },
       {
