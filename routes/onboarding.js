@@ -354,23 +354,30 @@ module.exports = (boltApp) => {
           text: `*${day.day}* (${day.time}) — Here are your onboarding tasks:`
         }
       },
-      ...day.events.map((event, i) => ({
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `*${i + 1}. ${event.title}*\nOwner: ${event.owner}\nMode: ${event.mode}${event.link ? `\n🔗 <${event.link}|Start Session>` : ''}${completedTaskIndices.has(i) ? ' ✓' : ''}`
-        },
-        accessory: noMarkCompleteTasks.includes(event.title) ? null : (completedTaskIndices.has(i) ? {
-          type: 'button',
-          text: { type: 'plain_text', text: '✓', emoji: true },
-          action_id: `task_completed_${weekIndex}_${dayIndex}_${i}`,
-          style: 'primary'
-        } : {
-          type: 'button',
-          text: { type: 'plain_text', text: 'Mark Complete', emoji: true },
-          action_id: `mark_complete_${weekIndex}_${dayIndex}_${i}`
-        })
-      })),
+      ...day.events.map((event, i) => {
+        const block = {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*${i + 1}. ${event.title}*\nOwner: ${event.owner}\nMode: ${event.mode}${event.link ? `\n🔗 <${event.link}|Start Session>` : ''}${completedTaskIndices.has(i) ? ' ✓' : ''}`
+          }
+        };
+
+        if (!noMarkCompleteTasks.includes(event.title)) {
+          block.accessory = completedTaskIndices.has(i) ? {
+            type: 'button',
+            text: { type: 'plain_text', text: '✓', emoji: true },
+            action_id: `task_completed_${weekIndex}_${dayIndex}_${i}`,
+            style: 'primary'
+          } : {
+            type: 'button',
+            text: { type: 'plain_text', text: 'Mark Complete', emoji: true },
+            action_id: `mark_complete_${weekIndex}_${dayIndex}_${i}`
+          };
+        }
+
+        return block;
+      }),
       {
         type: 'actions',
         elements: [
