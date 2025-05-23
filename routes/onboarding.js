@@ -704,8 +704,6 @@ module.exports = (boltApp) => {
       return;
     }
     const approvalId = segments[2];
-
-    // const approvalId = body.actions[0].action_id.split('_')[2];
     
     try {
       const approval = await TaskApproval.findById(approvalId);
@@ -738,9 +736,9 @@ module.exports = (boltApp) => {
       const statusBlocks = createTaskStatusBlocks(approvedTask, 'completed', approval.weekIndex, approval.dayIndex, approval.taskIndex);
 
       if (!client?.chat?.postMessage || !client?.chat?.update) {
-  console.error("Slack client is not properly initialized.");
-  return;
-}
+        console.error("Slack client is not properly initialized.");
+        return;
+      }
 
       await client.chat.update({
         token: process.env.SLACK_BOT_TOKEN,
@@ -750,11 +748,30 @@ module.exports = (boltApp) => {
         blocks: statusBlocks
       });
 
-      // Notify user
+      // Notify user with a button to view all tasks
       await client.chat.postMessage({
         token: process.env.SLACK_BOT_TOKEN,
         channel: approval.userId,
-        text: `✅ Your task completion request for "${approvedTask.title}" has been approved.`
+        text: `✅ Your task completion request for "${approvedTask.title}" has been approved.`,
+        blocks: [
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `✅ Your task completion request for "${approvedTask.title}" has been approved.`
+            }
+          },
+          {
+            type: 'actions',
+            elements: [
+              {
+                type: 'button',
+                text: { type: 'plain_text', text: '📋 View Day\'s Tasks', emoji: true },
+                action_id: `show_day_${approval.weekIndex}_${approval.dayIndex}`
+              }
+            ]
+          }
+        ]
       });
 
       // Update admin message
