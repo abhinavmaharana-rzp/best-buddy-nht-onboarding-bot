@@ -213,7 +213,7 @@ module.exports = (boltApp) => {
    *       500:
    *         description: Error triggering onboarding plan
    */
-  router.post('/trigger', authMiddleware, async (req, res) => {
+  router.post('/trigger', async (req, res) => {
     const { email, function: userFunction, subFunction, userName } = req.body;
     try {
       const user = await boltApp.client.users.lookupByEmail({

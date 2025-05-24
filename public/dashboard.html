@@ -94,8 +94,8 @@
                     <table class="min-w-full">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                <!-- <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th> -->
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task Progress</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Checklist Progress</th>
                             </tr>
@@ -205,42 +205,36 @@
         }
 
         // Enhanced fetch with better error handling
-        async function fetchWithAuth(url, options = {}) {
+          async function fetchWithAuth(url, options = {}) {
             const token = localStorage.getItem('token');
-            debugLog('Fetching:', url, 'with token:', token ? 'present' : 'missing');
-            
             if (!token) {
-                showError('Authentication token missing. Please log in again.');
                 window.location.href = '/login.html';
-                return null;
+                return;
             }
 
-            const headers = {
-                ...options.headers,
-                'Authorization': `Bearer ${token}`
+            const defaultOptions = {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
             };
 
             try {
-                const response = await fetch(url, { ...options, headers });
-                debugLog('Response status:', response.status, 'for URL:', url);
+                const response = await fetch(url, { ...defaultOptions, ...options });
 
                 if (response.status === 401) {
-                    debugLog('Token expired or invalid');
                     localStorage.removeItem('token');
-                    showError('Session expired. Please log in again.');
                     window.location.href = '/login.html';
-                    return null;
+                    return;
                 }
 
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
                 return response;
             } catch (error) {
-                debugLog('Fetch error:', error);
-                showError(error.message || 'An error occurred while fetching data');
+                console.error('Fetch error:', error);
                 throw error;
             }
         }
@@ -303,22 +297,40 @@
                 const tbody = document.getElementById('usersTableBody');
                 tbody.innerHTML = users.map(user => `
                     <tr>
-                        <td class="px-6 py-4 whitespace-nowrap">${user.name || 'Unknown'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <input type="checkbox" class="user-checkbox mr-2" data-user-id="${user.userId}">
+                                ${user.userId || 'Unknown'}
+                            </div>
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap">${user.email || 'Unknown'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${user.department || 'Unknown'}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center">
                                 <div class="w-full bg-gray-200 rounded-full h-2.5">
-                                    <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${user.taskProgress.rate}%"></div>
+                                    <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${user.taskProgress}%"></div>
                                 </div>
-                                <span class="ml-2">${user.taskProgress.rate.toFixed(1)}%</span>
+                                <span class="ml-2">${user.taskProgress?.toFixed(1)}%</span>
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center">
                                 <div class="w-full bg-gray-200 rounded-full h-2.5">
-                                    <div class="bg-green-600 h-2.5 rounded-full" style="width: ${user.checklistProgress.rate}%"></div>
+                                    <div class="bg-green-600 h-2.5 rounded-full" style="width: ${user.checklistProgress}%"></div>
                                 </div>
-                                <span class="ml-2">${user.checklistProgress.rate.toFixed(1)}%</span>
+                                <span class="ml-2">${user.checklistProgress?.toFixed(1)}%</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex space-x-2">
+                                <button onclick="showViewTasksModal('${user.name}', '${user.userId}')" 
+                                    class="text-blue-600 hover:text-blue-900">
+                                    <i class="fas fa-tasks"></i> View Tasks
+                                </button>
+                                <button onclick="showUserDetails('${user.userId}')" 
+                                    class="text-gray-600 hover:text-gray-900">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -340,7 +352,7 @@
                 const tbody = document.getElementById('approvalsTableBody');
                 tbody.innerHTML = approvals.map(approval => `
                     <tr>
-                        <td class="px-6 py-4 whitespace-nowrap">${approval.userName || 'Unknown'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${approval.userId || 'Unknown'}</td>
                         <td class="px-6 py-4 whitespace-nowrap">${approval.taskTitle || 'Unknown'}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
@@ -435,7 +447,7 @@
             
             try {
                 debugLog('Triggering onboarding with data:', Object.fromEntries(formData));
-                const response = await fetchWithAuth('/dashboard/trigger-onboarding', {
+                const response = await fetch('/dashboard/trigger-onboarding', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
