@@ -12,6 +12,9 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerSpecs = require('./swagger');
 const authRoutes = require('./routes/auth');
 
+// Import the dashboard router creator
+const createDashboardRouter = require('./routes/dashboard');
+
 // Initializes your app with your bot token and signing secret
 const app = new App({
     token: process.env.SLACK_BOT_TOKEN,
@@ -19,7 +22,10 @@ const app = new App({
     socketMode: true, // Enable Socket Mode
     appToken: process.env.SLACK_APP_TOKEN, // Add the app-level token
     socketModeReceiverOptions: {
-      pingInterval: 10000 // Increase to 10 seconds (in milliseconds)
+        pingInterval: 10000, // Reduce to 10 seconds
+        pingTimeout: 5000,   // Add explicit timeout
+        reconnectInterval: 1000, // Add reconnect interval
+        maxReconnectAttempts: 5  // Add max reconnect attempts
     }
 });
 
@@ -41,7 +47,7 @@ expressApp.use('/auth', authRoutes);
 expressApp.use('/onboarding', onboardingRoutes(app));
 expressApp.use('/checklist', checklistRoutes(app));
 expressApp.use('/user-lookup', userLookupRoutes);
-expressApp.use('/dashboard', dashboardRoutes);
+expressApp.use('/dashboard', createDashboardRouter(app));
 
 // Serve login page at root
 expressApp.get('/', (req, res) => {

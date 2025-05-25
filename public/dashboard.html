@@ -22,6 +22,85 @@
                 display: block !important;
             }
         }
+
+        /* Loading spinner */
+        .loading-spinner {
+            display: inline-block;
+            width: 1.5rem;
+            height: 1.5rem;
+            border: 3px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            z-index: 50;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .toast-success {
+            background-color: #dcfce7;
+            border: 1px solid #86efac;
+            color: #166534;
+        }
+
+        .toast-error {
+            background-color: #fee2e2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+
+        /* Table responsive improvements */
+        .table-container {
+            position: relative;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .table-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 1rem;
+            background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.05));
+            pointer-events: none;
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 640px) {
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .table-container {
+                margin: 0 -1rem;
+                padding: 0 1rem;
+            }
+
+            .toast {
+                left: 1rem;
+                right: 1rem;
+                text-align: center;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -212,6 +291,17 @@
         </div>
     </div>
 
+    <!-- Add loading overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white p-4 rounded-lg shadow-lg flex items-center space-x-3">
+            <div class="loading-spinner"></div>
+            <span class="text-gray-700">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Add toast container -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50"></div>
+
     <script>
         // Debug utilities
         const DEBUG = true; // Set to false in production
@@ -298,6 +388,7 @@
 
         // Enhanced data fetching functions
         async function fetchOverview() {
+            showLoading();
             try {
                 const response = await fetchWithAuth('/dashboard/overview');
                 if (!response) return;
@@ -305,13 +396,22 @@
                 const data = await response.json();
                 debugLog('Overview data:', data);
                 
-                document.getElementById('pendingApprovals').textContent = data.pendingApprovals;
-                document.getElementById('totalUsers').textContent = data.totalUsers;
-                document.getElementById('taskCompletion').textContent = `${data.taskCompletion.rate.toFixed(1)}%`;
-                document.getElementById('checklistCompletion').textContent = `${data.checklistCompletion.rate.toFixed(1)}%`;
+                // Add null checks and default values
+                document.getElementById('pendingApprovals').textContent = data.pendingApprovals || 0;
+                document.getElementById('totalUsers').textContent = data.totalUsers || 0;
+                
+                const taskCompletionRate = data.taskCompletion?.rate || 0;
+                const checklistCompletionRate = data.checklistCompletion?.rate || 0;
+                
+                document.getElementById('taskCompletion').textContent = `${taskCompletionRate.toFixed(1)}%`;
+                document.getElementById('checklistCompletion').textContent = `${checklistCompletionRate.toFixed(1)}%`;
+                
+                showToast('Overview data updated successfully', 'success', 2000);
             } catch (error) {
                 debugLog('Error fetching overview:', error);
                 showError('Failed to load overview data');
+            } finally {
+                hideLoading();
             }
         }
 
@@ -346,37 +446,40 @@
 
         // Update table row generation for better mobile display
         function generateUserRow(user) {
+            const taskProgress = user.taskProgress?.percentage || 0;
+            const checklistProgress = user.checklistProgress?.percentage || 0;
+            
             return `
                 <tr class="hover:bg-gray-50">
                     <td class="px-4 md:px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
-                            <input type="checkbox" class="user-checkbox mr-2" data-user-id="${user.userId}">
-                            <div class="text-sm font-medium text-gray-900">${user.userId || 'Unknown'}</div>
+                            <input type="checkbox" class="user-checkbox mr-2" data-user-id="${user.id || 'Unknown'}">
+                            <div class="text-sm font-medium text-gray-900">${user.userId || 'Unknown User'}</div>
                         </div>
                     </td>
                     <td class="px-4 md:px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
                             <div class="w-full bg-gray-200 rounded-full h-2.5">
-                                <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${user.taskProgress}%"></div>
+                                <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${taskProgress}%"></div>
                             </div>
-                            <span class="ml-2 text-sm text-gray-500">${user.taskProgress?.toFixed(1)}%</span>
+                            <span class="ml-2 text-sm text-gray-500">${taskProgress.toFixed(1)}%</span>
                         </div>
                     </td>
                     <td class="px-4 md:px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
                             <div class="w-full bg-gray-200 rounded-full h-2.5">
-                                <div class="bg-green-600 h-2.5 rounded-full" style="width: ${user.checklistProgress}%"></div>
+                                <div class="bg-green-600 h-2.5 rounded-full" style="width: ${checklistProgress}%"></div>
                             </div>
-                            <span class="ml-2 text-sm text-gray-500">${user.checklistProgress?.toFixed(1)}%</span>
+                            <span class="ml-2 text-sm text-gray-500">${checklistProgress.toFixed(1)}%</span>
                         </div>
                     </td>
                     <td class="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div class="flex space-x-2">
-                            <button onclick="showViewTasksModal('${user.name}', '${user.userId}')" 
+                            <button onclick="showViewTasksModal('${user.name || 'Unknown'}', '${user.id || ''}')" 
                                 class="text-blue-600 hover:text-blue-900">
                                 <i class="fas fa-tasks"></i> <span class="hidden md:inline">View Tasks</span>
                             </button>
-                            <button onclick="showUserDetails('${user.userId}')" 
+                            <button onclick="showUserDetails('${user.id || ''}')" 
                                 class="text-gray-600 hover:text-gray-900">
                                 <i class="fas fa-info-circle"></i>
                             </button>
@@ -386,8 +489,9 @@
             `;
         }
 
-        // Update the fetchUsers function to use the new row generation
+        // Update the fetchUsers function to handle missing data
         async function fetchUsers() {
+            showLoading();
             try {
                 const response = await fetchWithAuth('/dashboard/users');
                 if (!response) return;
@@ -395,15 +499,32 @@
                 const users = await response.json();
                 debugLog('Users data:', users);
                 
+                // Add data validation
+                const validUsers = users.map(user => ({
+                    ...user,
+                    taskProgress: {
+                        percentage: user.taskProgress?.percentage || 0
+                    },
+                    checklistProgress: {
+                        percentage: user.checklistProgress?.percentage || 0
+                    }
+                }));
+                
                 const tbody = document.getElementById('usersTableBody');
-                tbody.innerHTML = users.map(generateUserRow).join('');
+                tbody.innerHTML = validUsers.map(generateUserRow).join('');
+                
+                showToast('Users data updated successfully', 'success', 2000);
             } catch (error) {
                 debugLog('Error fetching users:', error);
                 showError('Failed to load user data');
+            } finally {
+                hideLoading();
             }
         }
 
+        // Update the fetchApprovals function to handle missing data
         async function fetchApprovals() {
+            showLoading();
             try {
                 const response = await fetchWithAuth('/dashboard/approvals');
                 if (!response) return;
@@ -413,48 +534,56 @@
                 
                 const tbody = document.getElementById('approvalsTableBody');
                 tbody.innerHTML = approvals.map(approval => `
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap">${approval.userId || 'Unknown'}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">${approval.taskTitle || 'Unknown'}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 md:px-6 py-4 whitespace-nowrap">${approval.userId || 'Unknown User'}</td>
+                        <td class="px-4 md:px-6 py-4 whitespace-nowrap">${approval.taskTitle || 'Unknown Task'}</td>
+                        <td class="px-4 md:px-6 py-4 whitespace-nowrap">
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                                 ${approval.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
                                   approval.status === 'approved' ? 'bg-green-100 text-green-800' : 
                                   'bg-red-100 text-red-800'}">
-                                ${approval.status}
+                                ${approval.status || 'unknown'}
                             </span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">${new Date(approval.requestedAt).toLocaleDateString()}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-4 md:px-6 py-4 whitespace-nowrap">${new Date(approval.requestedAt || Date.now()).toLocaleDateString()}</td>
+                        <td class="px-4 md:px-6 py-4 whitespace-nowrap">
                             ${approval.status === 'pending' ? `
-                                <button onclick="handleApproval('${approval._id}', 'approved', '${approval.userName}', '${approval.userId}')" 
+                                <button onclick="handleApproval('${approval._id || ''}', 'approved', '${approval.userName || ''}', '${approval.userId || ''}')" 
                                     class="text-green-600 hover:text-green-900 mr-2">
                                     <i class="fas fa-check"></i>
                                 </button>
-                                <button onclick="handleApproval('${approval._id}', 'rejected', '${approval.userName}', '${approval.userId}')" 
+                                <button onclick="handleApproval('${approval._id || ''}', 'rejected', '${approval.userName || ''}', '${approval.userId || ''}')" 
                                     class="text-red-600 hover:text-red-900">
                                     <i class="fas fa-times"></i>
                                 </button>
                             ` : `
-                                <button onclick="showViewTasksModal('${approval.userName}', '${approval.userId}')" 
+                                <button onclick="showViewTasksModal('${approval.userName || ''}', '${approval.userId || ''}')" 
                                     class="text-blue-600 hover:text-blue-900">
-                                    <i class="fas fa-tasks"></i> View Tasks
+                                    <i class="fas fa-tasks"></i> <span class="hidden md:inline">View Tasks</span>
                                 </button>
                             `}
                         </td>
                     </tr>
                 `).join('');
+                
+                showToast('Approvals data updated successfully', 'success', 2000);
             } catch (error) {
                 debugLog('Error fetching approvals:', error);
                 showError('Failed to load approval data');
+            } finally {
+                hideLoading();
             }
         }
 
         let currentUserId = null;
 
         function showViewTasksModal(userName, userId) {
+            if (!userId) {
+                showError('Invalid user ID');
+                return;
+            }
             currentUserId = userId;
-            document.getElementById('modalUserName').textContent = `View tasks for ${userName}`;
+            document.getElementById('modalUserName').textContent = `View tasks for ${userName || 'User'}`;
             document.getElementById('viewTasksModal').classList.remove('hidden');
         }
 
@@ -465,7 +594,9 @@
 
         document.getElementById('viewTasksButton').addEventListener('click', () => {
             if (currentUserId) {
-                window.location.href = `/onboarding/tasks/${currentUserId}`;
+                viewUserTasks(currentUserId);
+            } else {
+                showError('No user selected');
             }
         });
 
@@ -481,7 +612,7 @@
                 });
                 
                 if (response && response.ok) {
-                    showError(`Task ${status} successfully`, 3000);
+                    showToast(`Task ${status} successfully`, 'success', 3000);
                     // Show the view tasks button immediately after approval
                     const row = document.querySelector(`tr[data-approval-id="${approvalId}"]`);
                     if (row) {
@@ -502,18 +633,16 @@
             }
         }
 
-        // Enhanced form submission
+        // Update the trigger form submission handler
         document.getElementById('triggerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            showLoading();
             const formData = new FormData(e.target);
             
             try {
                 debugLog('Triggering onboarding with data:', Object.fromEntries(formData));
-                const response = await fetch('/dashboard/trigger-onboarding', {
+                const response = await fetchWithAuth('/dashboard/trigger-onboarding', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify({
                         email: formData.get('email'),
                         function: formData.get('function'),
@@ -522,26 +651,112 @@
                     })
                 });
                 
-                if (response && response.ok) {
-                    showError('Onboarding triggered successfully', 3000);
+                if (!response) {
+                    showError('Authentication failed. Please log in again.');
+                    return;
+                }
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast('Onboarding triggered successfully', 'success', 3000);
                     e.target.reset();
-                    fetchOverview();
-                    fetchUsers();
+                    // Refresh the dashboard data
+                    await Promise.all([
+                        fetchOverview(),
+                        fetchUsers()
+                    ]);
+                } else {
+                    throw new Error(result.message || 'Failed to trigger onboarding');
                 }
             } catch (error) {
                 debugLog('Error triggering onboarding:', error);
-                showError('Failed to trigger onboarding');
+                showError(error.message || 'Failed to trigger onboarding');
+            } finally {
+                hideLoading();
             }
         });
 
-        // Initialize with retry mechanism
+        // Add loading state management
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+
+        // Enhanced toast notification
+        function showToast(message, type = 'success', duration = 3000) {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            const container = document.getElementById('toastContainer');
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease-out reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // Update table containers
+        document.querySelectorAll('.bg-white.rounded-lg.shadow.overflow-x-auto').forEach(container => {
+            container.classList.add('table-container');
+        });
+
+        // Add pull-to-refresh functionality for mobile
+        let touchStartY = 0;
+        let touchEndY = 0;
+
+        mainContent.addEventListener('touchstart', e => {
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        mainContent.addEventListener('touchmove', e => {
+            touchEndY = e.touches[0].clientY;
+        }, { passive: true });
+
+        mainContent.addEventListener('touchend', () => {
+            const pullDistance = touchEndY - touchStartY;
+            if (pullDistance > 100 && window.scrollY === 0) {
+                showToast('Refreshing data...', 'success', 1000);
+                initialize();
+            }
+        }, { passive: true });
+
+        // Add offline detection
+        window.addEventListener('online', () => {
+            showToast('Back online! Refreshing data...', 'success');
+            initialize();
+        });
+
+        window.addEventListener('offline', () => {
+            showError('You are offline. Some features may be unavailable.');
+        });
+
+        // Update initialization
         async function initialize() {
-            await checkAuth();
-            await Promise.all([
-                fetchOverview(),
-                fetchUsers(),
-                fetchApprovals()
-            ]);
+            showLoading();
+            try {
+                await checkAuth();
+                await Promise.all([
+                    fetchOverview(),
+                    fetchUsers(),
+                    fetchApprovals()
+                ]);
+            } catch (error) {
+                debugLog('Initialization error:', error);
+                showError('Failed to initialize dashboard');
+            } finally {
+                hideLoading();
+            }
         }
 
         // Start initialization
@@ -556,17 +771,14 @@
             }
         }, 30000);
 
-        // Add this function to handle viewing tasks
+        // Update the viewUserTasks function to use fetchWithAuth
         async function viewUserTasks(userId) {
+            showLoading();
             try {
-                const response = await fetch(`/onboarding/tasks/${userId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to fetch tasks');
+                const response = await fetchWithAuth(`/onboarding/tasks/${userId}`);
+                if (!response) {
+                    showError('Authentication failed. Please log in again.');
+                    return;
                 }
                 
                 const data = await response.json();
@@ -574,87 +786,114 @@
                 // Create the tasks content
                 let tasksHtml = `
                     <div class="mb-4">
-                        <h3 class="text-lg font-semibold mb-2">${data.user.name}'s Tasks</h3>
-                        <p class="text-sm text-gray-600 mb-4">${data.user.function} - ${data.user.subFunction}</p>
+                        <h3 class="text-lg font-semibold mb-2">${data.user?.name || 'User'}'s Tasks</h3>
+                        <p class="text-sm text-gray-600 mb-4">${data.user?.function || 'N/A'} - ${data.user?.subFunction || 'N/A'}</p>
                     </div>
                 `;
                 
-                // Add weeks and tasks
-                data.weeks.forEach(week => {
+                if (!data.weeks || data.weeks.length === 0) {
                     tasksHtml += `
-                        <div class="mb-6">
-                            <h4 class="text-md font-semibold mb-2">Week ${week.weekNumber}</h4>
+                        <div class="text-center py-4 text-gray-500">
+                            No tasks found for this user.
+                        </div>
                     `;
-                    
-                    week.days.forEach(day => {
+                } else {
+                    // Add weeks and tasks
+                    data.weeks.forEach(week => {
                         tasksHtml += `
-                            <div class="mb-4">
-                                <h5 class="text-sm font-medium mb-2">Day ${day.dayNumber}</h5>
-                                <div class="space-y-2">
+                            <div class="mb-6">
+                                <h4 class="text-md font-semibold mb-2">Week ${week.weekNumber}</h4>
                         `;
                         
-                        // Add tasks
-                        day.tasks.forEach(task => {
-                            const statusClass = task.completed ? 'bg-green-100 text-green-800' : 
-                                              task.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                                              'bg-gray-100 text-gray-800';
-                            
+                        week.days.forEach(day => {
                             tasksHtml += `
-                                <div class="p-2 rounded ${statusClass}">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-sm">${task.title}</span>
-                                        <span class="text-xs px-2 py-1 rounded-full ${statusClass}">
-                                            ${task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-                                        </span>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        
-                        // Add checklist items
-                        if (day.checklistItems.length > 0) {
-                            tasksHtml += `
-                                <div class="mt-2">
-                                    <h6 class="text-xs font-medium mb-1">Checklist Items:</h6>
-                                    <div class="space-y-1">
+                                <div class="mb-4">
+                                    <h5 class="text-sm font-medium mb-2">Day ${day.dayNumber}</h5>
+                                    <div class="space-y-2">
                             `;
                             
-                            day.checklistItems.forEach(item => {
-                                const statusClass = item.completed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+                            // Add tasks
+                            (day.tasks || []).forEach(task => {
+                                const statusClass = task.completed ? 'bg-green-100 text-green-800' : 
+                                                  task.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                                                  'bg-gray-100 text-gray-800';
+                                
                                 tasksHtml += `
                                     <div class="p-2 rounded ${statusClass}">
                                         <div class="flex items-center justify-between">
-                                            <span class="text-sm">${item.title}</span>
+                                            <span class="text-sm">${task.title || 'Untitled Task'}</span>
                                             <span class="text-xs px-2 py-1 rounded-full ${statusClass}">
-                                                ${item.completed ? 'Completed' : 'Pending'}
+                                                ${(task.status || 'pending').charAt(0).toUpperCase() + (task.status || 'pending').slice(1)}
                                             </span>
                                         </div>
                                     </div>
                                 `;
                             });
                             
+                            // Add checklist items
+                            if (day.checklistItems && day.checklistItems.length > 0) {
+                                tasksHtml += `
+                                    <div class="mt-2">
+                                        <h6 class="text-xs font-medium mb-1">Checklist Items:</h6>
+                                        <div class="space-y-1">
+                                `;
+                                
+                                day.checklistItems.forEach(item => {
+                                    const statusClass = item.completed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+                                    tasksHtml += `
+                                        <div class="p-2 rounded ${statusClass}">
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-sm">${item.title || 'Untitled Item'}</span>
+                                                <span class="text-xs px-2 py-1 rounded-full ${statusClass}">
+                                                    ${item.completed ? 'Completed' : 'Pending'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    `;
+                                });
+                                
+                                tasksHtml += `
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                            
                             tasksHtml += `
+                                    </div>
                                 </div>
                             `;
-                        }
+                        });
                         
                         tasksHtml += `
                             </div>
-                        </div>
-                    `;
+                        `;
                     });
-                    
-                    tasksHtml += `
-                        </div>
-                    `;
-                });
+                }
                 
                 // Update modal content
-                document.getElementById('viewTasksContent').innerHTML = tasksHtml;
+                const modalContent = document.getElementById('viewTasksContent');
+                if (modalContent) {
+                    modalContent.innerHTML = tasksHtml;
+                } else {
+                    // Create modal content if it doesn't exist
+                    const modal = document.getElementById('viewTasksModal');
+                    const contentDiv = document.createElement('div');
+                    contentDiv.id = 'viewTasksContent';
+                    contentDiv.className = 'mt-2 px-7 py-3 max-h-96 overflow-y-auto';
+                    contentDiv.innerHTML = tasksHtml;
+                    
+                    // Insert before the buttons
+                    const buttonsDiv = modal.querySelector('.items-center');
+                    modal.insertBefore(contentDiv, buttonsDiv);
+                }
+                
                 document.getElementById('viewTasksModal').classList.remove('hidden');
+                showToast('Tasks loaded successfully', 'success');
             } catch (error) {
-                console.error('Error viewing tasks:', error);
-                alert('Failed to load tasks. Please try again.');
+                debugLog('Error viewing tasks:', error);
+                showError('Failed to load tasks. Please try again.');
+            } finally {
+                hideLoading();
             }
         }
 
