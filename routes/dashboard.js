@@ -132,20 +132,15 @@ function createRouter(app) {
                 text: `Welcome to your onboarding plan, ${userName}!`,
                 blocks: [
                     {
+                        type: 'header',
+                        text: { type: 'plain_text', text: `🎉 Welcome to Razorpay, ${userName}! 👋`, emoji: true }
+                    },
+                    {
                         type: 'section',
                         text: {
                             type: 'mrkdwn',
-                            text: `*Welcome to your onboarding plan, ${userName}!*\n\nYour function: ${userFunction}\nYour sub-function: ${subFunction}\n\nHere's your 30-day onboarding schedule. Select a week to view its tasks:`
+                            text: `🏢 *Your Team Info*\n• Function: ${userFunction}\n• Sub-function: ${subFunction}`
                         }
-                    },
-                    { type: 'divider' },
-                    {
-                        type: 'section',
-                        text: { type: 'mrkdwn', text: `✅ *Here's your 30 days Onboarding Plan:*` },
-                    },
-                    {
-                        type: 'actions',
-                        elements: weekButtons
                     },
                     { type: 'divider' },
                     {
@@ -210,7 +205,16 @@ function createRouter(app) {
                                 text: { type: 'plain_text', text: 'Mark Complete', emoji: true },
                                 action_id: `complete_checklist_item_${item._id}`
                             }
-                        }))
+                        })),
+                    { type: 'divider' },
+                        {
+                        type: 'section',
+                        text: { type: 'mrkdwn', text: `✅ *Here's your 30 days Onboarding Plan:*` },
+                    },
+                    {
+                        type: 'actions',
+                        elements: weekButtons
+                    },
                 ]
             });
 

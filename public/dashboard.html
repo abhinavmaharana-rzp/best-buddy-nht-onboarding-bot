@@ -446,6 +446,7 @@
 
         // Update table row generation for better mobile display
         function generateUserRow(user) {
+            console.log('Generating row for user:', user);
             const taskProgress = user.taskProgress?.percentage || 0;
             const checklistProgress = user.checklistProgress?.percentage || 0;
             
@@ -454,7 +455,7 @@
                     <td class="px-4 md:px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
                             <input type="checkbox" class="user-checkbox mr-2" data-user-id="${user.id || 'Unknown'}">
-                            <div class="text-sm font-medium text-gray-900">${user.userId || 'Unknown User'}</div>
+                            <div class="text-sm font-medium text-gray-900">${user.email || 'Unknown User'}</div>
                         </div>
                     </td>
                     <td class="px-4 md:px-6 py-4 whitespace-nowrap">
@@ -535,7 +536,7 @@
                 const tbody = document.getElementById('approvalsTableBody');
                 tbody.innerHTML = approvals.map(approval => `
                     <tr class="hover:bg-gray-50">
-                        <td class="px-4 md:px-6 py-4 whitespace-nowrap">${approval.userId || 'Unknown User'}</td>
+                        <td class="px-4 md:px-6 py-4 whitespace-nowrap">${approval.user.email || 'Unknown User'}</td>
                         <td class="px-4 md:px-6 py-4 whitespace-nowrap">${approval.taskTitle || 'Unknown Task'}</td>
                         <td class="px-4 md:px-6 py-4 whitespace-nowrap">
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
