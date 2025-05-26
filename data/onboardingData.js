@@ -20,7 +20,7 @@ module.exports = [
         time: '10:30 AM - 6:00 PM',
         events: [
           { title: 'Fintech 101', owner: 'Abhinav Maharana', link: 'https://learnx.disprz.com/#!/module/1347', mode: 'Video + In-Person' },
-          { title: 'Know your Leaders', owner: 'Lera P', mode: 'Video + In-Person' },
+          { title: 'Know your Leaders', owner: 'Lera P', mode: 'In-Person' },
           { title: 'Task for the Day', owner: 'Self / L&D', mode: 'In-Person' },
           { title: 'Buddy Meet', owner: 'Buddy', mode: 'In-Person' },
           { title: 'Process (PSE) and SOP', owner: 'Team SPOC', mode: 'Video + In-Person' }

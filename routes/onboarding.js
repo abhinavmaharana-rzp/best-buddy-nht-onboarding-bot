@@ -7,6 +7,7 @@ const checklistData = require('../data/checklistData');
 const ChecklistItem = require('../models/checklistItem');
 const TaskStatus = require('../models/taskStatus');
 const TaskApproval = require('../models/taskApproval');
+const { text } = require('body-parser');
 
 /**
  * @swagger
@@ -333,6 +334,10 @@ module.exports = (boltApp) => {
           text: { type: 'plain_text', text: weekData.week, emoji: true },
           action_id: `show_week_${index}`
         }))
+      },
+      {
+        type: 'section',
+        text: { type: 'mrkdwn', text: 'You can view your progress and mark tasks as complete through these buttons. Your Learning Business Partner will review and approve completed tasks.' }
       }
     ];
   };
