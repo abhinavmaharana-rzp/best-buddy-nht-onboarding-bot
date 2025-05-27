@@ -4,8 +4,8 @@
   "description": "Slack bot for Razorpay onboarding with checklist tracking",
   "main": "app.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
+    "start": "node app.js",
+    "dev": "nodemon app.js",
     "test": "jest",
     "test:watch": "jest --watchAll"
   },
