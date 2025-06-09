@@ -9,12 +9,14 @@ const amOnboardingRoutes = require('./routes/amOnboarding');
 const checklistRoutes = require('./routes/checklist');
 const userLookupRoutes = require('./routes/userLookup');
 const dashboardRoutes = require('./routes/dashboard');
+const amDashboardRoutes = require('./routes/amDashboard');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpecs = require('./swagger');
 const authRoutes = require('./routes/auth');
 
 // Import the dashboard router creator
 const createDashboardRouter = require('./routes/dashboard');
+const createAmDashboardRouter = require('./routes/amDashboard');
 
 // Initializes your app with your bot token and signing secret
 const app = new App({
@@ -50,6 +52,7 @@ expressApp.use('/am-onboarding', amOnboardingRoutes(app));
 expressApp.use('/checklist', checklistRoutes(app));
 expressApp.use('/user-lookup', userLookupRoutes);
 expressApp.use('/dashboard', createDashboardRouter(app));
+expressApp.use('/am-dashboard', createAmDashboardRouter(app));
 
 // Serve login page at root
 expressApp.get('/', (req, res) => {
@@ -59,6 +62,11 @@ expressApp.get('/', (req, res) => {
 // Serve dashboard at /dashboard
 expressApp.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+// Serve AM dashboard at /am-dashboard
+expressApp.get('/am-dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'am-dashboard.html'));
 });
 
 // Swagger UI
@@ -76,6 +84,7 @@ expressApp.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
       console.log(`⚡️ Express app is running on port ${process.env.PORT || 3000}`);
       console.log(`📚 API Documentation available at http://localhost:${process.env.PORT || 3000}/api-docs`);
       console.log(`📊 Dashboard available at http://localhost:${process.env.PORT || 3000}`);
+      console.log(`📊 AM Dashboard available at http://localhost:${process.env.PORT || 3000}/am-dashboard`);
     });
   } catch (error) {
     console.error('Error starting app:', error);
