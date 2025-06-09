@@ -5,6 +5,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
 const onboardingRoutes = require('./routes/onboarding');
+const amOnboardingRoutes = require('./routes/amOnboarding');
 const checklistRoutes = require('./routes/checklist');
 const userLookupRoutes = require('./routes/userLookup');
 const dashboardRoutes = require('./routes/dashboard');
@@ -45,6 +46,7 @@ mongoose.connect(process.env.MONGODB_URI, {}).then(() => {
 // Routes
 expressApp.use('/auth', authRoutes);
 expressApp.use('/onboarding', onboardingRoutes(app));
+expressApp.use('/am-onboarding', amOnboardingRoutes(app));
 expressApp.use('/checklist', checklistRoutes(app));
 expressApp.use('/user-lookup', userLookupRoutes);
 expressApp.use('/dashboard', createDashboardRouter(app));
