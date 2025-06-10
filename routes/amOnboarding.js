@@ -313,33 +313,56 @@ module.exports = (boltApp) => {
     ];
   };
 
-  const createOnboardingBlocks = (selectedOnboardingData) => {
-    return [
-      { type: 'divider' },
-      {
-        type: 'section',
-        text: { type: 'mrkdwn', text: `✅ *Here's your 30 days Onboarding Plan:*` },
-      },
-      {
-        type: 'section',
-        text: { type: 'mrkdwn', text: 'Select a week to view its schedule:' }
-      },
-      {
-        type: 'actions',
-        elements: selectedOnboardingData.map((weekData, index) => ({
-          type: 'button',
-          text: { type: 'plain_text', text: weekData.week, emoji: true },
-          action_id: `show_week_${index}`
-        }))
-      },
-      {
-        type: 'section',
-        text: { type: 'mrkdwn', text: 'You can view your progress and mark tasks as complete through these buttons. Your Learning Business Partner will review and approve completed tasks.' }
+  async function createOnboardingBlocks(userId, channelId, messageTs) {
+    try {
+      // Get user's subfunction from TaskStatus
+      const userTask = await TaskStatus.findOne({ userId });
+      if (!userTask) {
+        throw new Error('User task information not found');
       }
-    ];
-  };
 
-  const createTaskBlocks = (day, completedTaskIndices, weekIndex, dayIndex) => {
+      const subFunction = userTask.subFunction;
+
+      // Select onboarding data based on subfunction
+      const selectedOnboardingData = subFunction === 'Channel Partnerships' ? channelOnboardingData : amOnboardingData;
+
+      // Create week buttons
+      const weekButtons = selectedOnboardingData.map((week, index) => ({
+        type: 'button',
+        text: { type: 'plain_text', text: week.week, emoji: true },
+        action_id: `show_week_${index}_${messageTs}`
+      }));
+
+      // Create blocks
+      const blocks = [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: ':white_check_mark: Here\'s your 30 days Onboarding Plan:\nSelect a week to view its schedule:'
+          }
+        },
+        {
+          type: 'actions',
+          elements: weekButtons
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: 'You can view your progress and mark tasks as complete through these buttons. Your Learning Business Partner will review and approve completed tasks.'
+          }
+        }
+      ];
+
+      return blocks;
+    } catch (error) {
+      console.error('Error creating onboarding blocks:', error);
+      throw error;
+    }
+  }
+
+  const createTaskBlocks = (day, completedTaskIndices, weekIndex, dayIndex, messageTs) => {
     // List of tasks that should not have the Mark Complete button
     const noMarkCompleteTasks = [
       'Razorpay Orientation and Culture',
@@ -369,12 +392,12 @@ module.exports = (boltApp) => {
           block.accessory = completedTaskIndices.has(i) ? {
             type: 'button',
             text: { type: 'plain_text', text: '✓', emoji: true },
-            action_id: `task_completed_${weekIndex}_${dayIndex}_${i}`,
+            action_id: `task_completed_${weekIndex}_${dayIndex}_${i}_${messageTs}`,
             style: 'primary'
           } : {
             type: 'button',
             text: { type: 'plain_text', text: 'Mark Complete', emoji: true },
-            action_id: `mark_complete_${weekIndex}_${dayIndex}_${i}`
+            action_id: `mark_complete_${weekIndex}_${dayIndex}_${i}_${messageTs}`
           };
         }
 
@@ -386,7 +409,7 @@ module.exports = (boltApp) => {
           {
             type: 'button',
             text: { type: 'plain_text', text: '📅 Back to Day', emoji: true },
-            action_id: `back_to_week_${weekIndex}`
+            action_id: `back_to_week_${weekIndex}_${messageTs}`
           }
         ]
       }
@@ -471,122 +494,179 @@ module.exports = (boltApp) => {
   async function sendOnboardingPlan(boltApp, userId, userData) {
     const { userName, userFunction, subFunction } = userData;
 
+    // Get or create checklist items
+    const checklistItems = await getOrCreateChecklistItems(userId);
+
+    // Create welcome message blocks
+    const welcomeBlocks = createWelcomeBlocks(userName, userFunction, subFunction, checklistItems);
+
     // Select onboarding data based on subfunction
     const selectedOnboardingData = subFunction === 'Channel Partnerships' ? channelOnboardingData : amOnboardingData;
+      
+    // Send welcome message
+    const welcomeResult = await boltApp.client.chat.postMessage({
+      token: process.env.SLACK_BOT_TOKEN,
+      channel: userId,
+      text: `Welcome to Razorpay!`,
+      blocks: welcomeBlocks
+    });
 
-    // Get or create checklist items
-    let checklistItems = await ChecklistItem.find({ userId });
-    if (checklistItems.length === 0) {
-      const newItems = checklistData.map(item => ({
-        task: item.text.text,
-        userId,
-        completed: false
-      }));
-      checklistItems = await ChecklistItem.insertMany(newItems);
-    }
+    // Get message timestamp
+    const messageTs = welcomeResult.ts;
 
-    // Create welcome blocks
-    const welcomeBlocks = createWelcomeBlocks(userName, userFunction, subFunction, checklistItems);
-    
+    // Create week buttons
+    const weekButtons = selectedOnboardingData.map((week, index) => ({
+      type: 'button',
+      text: { type: 'plain_text', text: week.week, emoji: true },
+      action_id: `show_week_${index}_${messageTs}`
+    }));
+
     // Create onboarding blocks
-    const onboardingBlocks = createOnboardingBlocks(selectedOnboardingData);
+    const onboardingBlocks = [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: ':white_check_mark: Here\'s your 30 days Onboarding Plan:\nSelect a week to view its schedule:'
+        }
+      },
+      {
+        type: 'actions',
+        elements: weekButtons
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: 'You can view your progress and mark tasks as complete through these buttons. Your Learning Business Partner will review and approve completed tasks.'
+        }
+      }
+    ];
 
+    // Send onboarding plan
+    await boltApp.client.chat.postMessage({
+      token: process.env.SLACK_BOT_TOKEN,
+      channel: userId,
+      text: 'Your 30 days Onboarding Plan',
+      blocks: onboardingBlocks
+    });
+
+    return true;
+  }
+
+  async function getOrCreateChecklistItems(userId) {
     try {
-        // Open DM channel with user
-        const { channel } = await boltApp.client.conversations.open({
-          token: process.env.SLACK_BOT_TOKEN,
-          users: userId,
-        });
-  
-        // Send initial message
-        const result = await boltApp.client.chat.postMessage({
-          token: process.env.SLACK_BOT_TOKEN,
-          channel: channel.id,
-          text: `Welcome to Razorpay, ${userName}!`,
-          blocks: [...welcomeBlocks, ...onboardingBlocks]
-        });
-  
-        // Update message with timestamp for week buttons
-        const updatedBlocks = onboardingBlocks.map(block => {
-          if (block.type === 'actions') {
-            return {
-              ...block,
-              elements: block.elements.map(element => ({
-                ...element,
-                action_id: `${element.action_id}_${result.ts}`
-              }))
-            };
-          }
-          return block;
-        });
-  
-        await boltApp.client.chat.update({
-          token: process.env.SLACK_BOT_TOKEN,
-          channel: channel.id,
-          ts: result.ts,
-          blocks: [...welcomeBlocks, ...updatedBlocks],
-          text: `Welcome to Razorpay, ${userName}!`
-        });
-  
-      } catch (error) {
-        console.error('Error sending onboarding plan:', error);
+      // Get existing checklist items
+      let checklistItems = await ChecklistItem.find({ userId });
+      
+      // If no items exist, create new ones
+      if (checklistItems.length === 0) {
+        const newItems = checklistData.map(item => ({
+          task: item.text.text,
+          userId,
+          completed: false
+        }));
+        checklistItems = await ChecklistItem.insertMany(newItems);
+      }
+      
+      return checklistItems;
+    } catch (error) {
+      console.error('Error getting/creating checklist items:', error);
+      throw error;
     }
   }
 
-  boltApp.action(/show_week_\d+/, async ({ ack, body, client }) => {
+  boltApp.action(/show_week_\d+_(.+)/, async ({ ack, body, client }) => {
     await ack();
-    const actionId = body.actions[0].action_id;
-    const weekIndex = parseInt(actionId.split('_')[2]);
+    const segments = body.actions[0].action_id.split('_');
+    if (segments.length < 3 || !segments[2]) {
+      console.error("Invalid action_id format:", body.actions[0].action_id);
+      return;
+    }
+    const weekIndex = parseInt(segments[1]);
+    const messageTs = segments[2];
+
+    try {
+      // Get user's subfunction from TaskStatus
+      const userTask = await TaskStatus.findOne({ userId: body.user.id });
+      if (!userTask) {
+        throw new Error('User task information not found');
+      }
+
+      const subFunction = userTask.subFunction;
+
+      // Select onboarding data based on subfunction
+      const selectedOnboardingData = subFunction === 'Channel Partnerships' ? channelOnboardingData : amOnboardingData;
+
+      // Get the selected week's data
+      const weekData = selectedOnboardingData[weekIndex];
+      if (!weekData) {
+        throw new Error('Week data not found');
+      }
+
+      // Create day buttons
+      const dayButtons = weekData.days.map((day, index) => ({
+        type: 'button',
+        text: { type: 'plain_text', text: day.day, emoji: true },
+        action_id: `show_day_${weekIndex}_${index}_${messageTs}`
+      }));
+
+      // Create blocks for the week view
+      const blocks = [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `Here's the schedule for ${weekData.week}.`
+          }
+        },
+        {
+          type: 'actions',
+          elements: dayButtons
+        }
+      ];
+
+      // Update the message
+      await client.chat.update({
+        token: process.env.SLACK_BOT_TOKEN,
+        channel: body.channel.id,
+        ts: body.message.ts,
+        text: `Schedule for ${weekData.week}`,
+        blocks: blocks
+      });
+
+    } catch (error) {
+      console.error('Error showing week:', error);
+      await client.chat.postMessage({
+        token: process.env.SLACK_BOT_TOKEN,
+        channel: body.user.id,
+        text: 'Error showing week schedule. Please try again later.'
+      });
+    }
+  });
+
+  // Update the show_day action handler to handle the timestamp
+  boltApp.action(/show_day_(\d+)_(\d+)_(.+)/, async ({ ack, body, client }) => {
+    await ack();
+    const [weekIndexStr, dayIndexStr, messageTs] = body.actions[0].action_id.split('_').slice(2);
+    const weekIndex = parseInt(weekIndexStr);
+    const dayIndex = parseInt(dayIndexStr);
     const userId = body.user.id;
 
-    // Get user's subfunction from TaskStatus or another source
+    // Get user's subfunction from TaskStatus
     const userTask = await TaskStatus.findOne({ userId });
     const subFunction = userTask?.subFunction || 'default';
 
     // Select onboarding data based on subfunction
     const selectedOnboardingData = subFunction === 'Channel Partnerships' ? channelOnboardingData : amOnboardingData;
-    const selectedWeek = selectedOnboardingData[weekIndex];
+    const day = selectedOnboardingData[weekIndex]?.days?.[dayIndex];
 
-    if (!selectedWeek || !selectedWeek.days) {
-        await client.chat.postMessage({
-          token: process.env.SLACK_BOT_TOKEN,
-          channel: body.user.id,
-          text: "Sorry, we couldn't fetch the events for this week."
-        });
-        return;
-      }
-  
-      const dayButtons = selectedWeek.days.map((day, index) => ({
-        type: 'button',
-        text: { type: 'plain_text', text: day.day },
-        action_id: `show_day_${weekIndex}_${index}`
-    }));
-
-    await client.chat.postMessage({
-        token: process.env.SLACK_BOT_TOKEN,
-        channel: body.user.id,
-        text: `Here's the schedule for *${selectedWeek.week}*.`,
-        blocks: [
-          { type: 'section', text: { type: 'mrkdwn', text: `Here's the schedule for *${selectedWeek.week}*.` } },
-          { type: 'actions', elements: dayButtons }
-        ]
-    });
-  });
-
-  // Update the show_day action handler
-  boltApp.action(/show_day_(\d+)_(\d+)/, async ({ ack, body, client }) => {
-    await ack();
-    const [weekIndexStr, dayIndexStr] = body.actions[0].action_id.split('_').slice(2);
-    const weekIndex = parseInt(weekIndexStr);
-    const dayIndex = parseInt(dayIndexStr);
-    const userId = body.user.id;
-
-    const day = amOnboardingData[weekIndex]?.days?.[dayIndex];
     if (!day || !day.events) {
       await client.chat.postMessage({
         channel: body.user.id,
         text: "Sorry, we couldn't find tasks for this day."
       });
+      return;
     }
 
     // Get completed tasks
@@ -599,7 +679,7 @@ module.exports = (boltApp) => {
     const completedTaskIndices = new Set(completedTasks.map(task => task.taskIndex));
 
     // Create and send task blocks
-    const taskBlocks = createTaskBlocks(day, completedTaskIndices, weekIndex, dayIndex);
+    const taskBlocks = createTaskBlocks(day, completedTaskIndices, weekIndex, dayIndex, messageTs);
     await client.chat.postMessage({
       channel: body.user.id,
       text: `Tasks for ${day.day}`,
@@ -608,30 +688,37 @@ module.exports = (boltApp) => {
   });
 
   // Handle mark complete button click
-  boltApp.action(/mark_complete_\d+_\d+_\d+/, async ({ ack, body, client }) => {
+  boltApp.action(/mark_complete_\d+_\d+_\d+_(.+)/, async ({ ack, body, client }) => {
     await ack();
-    const [ , , weekIndexStr, dayIndexStr, taskIndexStr ] = body.actions[0].action_id.split('_');
+    const [ , , weekIndexStr, dayIndexStr, taskIndexStr, messageTs ] = body.actions[0].action_id.split('_');
     const weekIndex = parseInt(weekIndexStr, 10);
     const dayIndex = parseInt(dayIndexStr, 10);
     const taskIndex = parseInt(taskIndexStr, 10);
     const userId = body.user.id;
 
     try {
-        // Validate task data
-      const task = amOnboardingData[weekIndex]?.days?.[dayIndex]?.events?.[taskIndex];
+      // Get user's subfunction from TaskStatus
+      const userTask = await TaskStatus.findOne({ userId });
+      const subFunction = userTask?.subFunction || 'default';
+
+      // Select onboarding data based on subfunction
+      const selectedOnboardingData = subFunction === 'Channel Partnerships' ? channelOnboardingData : amOnboardingData;
+
+      // Validate task data
+      const task = selectedOnboardingData[weekIndex]?.days?.[dayIndex]?.events?.[taskIndex];
       if (!task) {
         throw new Error('Invalid task data');
       }
 
       // Create approval request
       const existing = await TaskApproval.findOne({ userId, weekIndex, dayIndex, taskIndex });
-        if (existing) {
-          console.warn('Approval request already exists:', existing._id);
-          await client.chat.postMessage({
-            token: process.env.SLACK_BOT_TOKEN,
-            channel: userId,
-            text: `⚠️ You've already requested completion approval for "${task.title}".`
-          });
+      if (existing) {
+        console.warn('Approval request already exists:', existing._id);
+        await client.chat.postMessage({
+          token: process.env.SLACK_BOT_TOKEN,
+          channel: userId,
+          text: `⚠️ You've already requested completion approval for "${task.title}".`
+        });
         return;
       }
       const approval = new TaskApproval({
@@ -657,10 +744,9 @@ module.exports = (boltApp) => {
         const adminBlocks = createApprovalBlocks(
           userId,
           { ...task, _id: approval._id.toString() },
-          amOnboardingData[weekIndex].week,
-          amOnboardingData[weekIndex].days[dayIndex].day
+          selectedOnboardingData[weekIndex].week,
+          selectedOnboardingData[weekIndex].days[dayIndex].day
         );
-
 
         await client.chat.postMessage({
           token: process.env.SLACK_BOT_TOKEN,
@@ -688,11 +774,11 @@ module.exports = (boltApp) => {
       });
 
     } catch (error) {
-        console.error('Error creating approval request:', error);
-        await client.chat.postMessage({
-            channel: userId,
-            text: 'Error creating approval request. Please try again later.'
-        });
+      console.error('Error creating approval request:', error);
+      await client.chat.postMessage({
+        channel: userId,
+        text: 'Error creating approval request. Please try again later.'
+      });
     }
   });
 
@@ -711,6 +797,17 @@ module.exports = (boltApp) => {
         if (!approval) {
           throw new Error('Approval request not found');
         }
+
+        // Get user's subfunction from TaskStatus
+        const userTask = await TaskStatus.findOne({ userId: approval.userId });
+        if (!userTask) {
+          throw new Error('User task information not found');
+        }
+
+        const subFunction = userTask.subFunction;
+
+        // Select onboarding data based on subfunction
+        const selectedOnboardingData = subFunction === 'Channel Partnerships' ? channelOnboardingData : amOnboardingData;
   
         // Update approval status
         approval.status = 'approved';
@@ -731,7 +828,7 @@ module.exports = (boltApp) => {
         );
   
         // Get task details
-        const approvedTask = amOnboardingData[approval.weekIndex].days[approval.dayIndex].events[approval.taskIndex];
+        const approvedTask = selectedOnboardingData[approval.weekIndex].days[approval.dayIndex].events[approval.taskIndex];
         
         // Update original message
         const statusBlocks = createTaskStatusBlocks(approvedTask, 'completed', approval.weekIndex, approval.dayIndex, approval.taskIndex);
@@ -768,7 +865,7 @@ module.exports = (boltApp) => {
                 {
                   type: 'button',
                   text: { type: 'plain_text', text: '📋 View Day\'s Tasks', emoji: true },
-                  action_id: `show_day_${approval.weekIndex}_${approval.dayIndex}`
+                  action_id: `show_day_${approval.weekIndex}_${approval.dayIndex}_${approval.messageTs}`
                 }
               ]
             }
@@ -786,7 +883,7 @@ module.exports = (boltApp) => {
               type: 'section',
               text: {
                 type: 'mrkdwn',
-                text: `✅ *Task Completion Request Approved*\nUser: <@${approval.userId}>\nTask: ${approvedTask.title}\nWeek: ${amOnboardingData[approval.weekIndex].week}\nDay: ${amOnboardingData[approval.weekIndex].days[approval.dayIndex].day}`
+                text: `✅ *Task Completion Request Approved*\nUser: <@${approval.userId}>\nTask: ${approvedTask.title}\nWeek: ${selectedOnboardingData[approval.weekIndex].week}\nDay: ${selectedOnboardingData[approval.weekIndex].days[approval.dayIndex].day}`
               }
             }
           ]
@@ -805,23 +902,33 @@ module.exports = (boltApp) => {
   boltApp.action(/reject_task_(.+)/, async ({ ack, body, client }) => {
     await ack();
     const segments = body.actions[0].action_id.split('_');
-if (segments.length < 3 || !segments[2] || segments[2] === 'undefined') {
-  console.error("Invalid action_id format:", body.actions[0].action_id);
-  await client.chat.postMessage({
-    token: process.env.SLACK_BOT_TOKEN,
-    channel: body.user.id,
-    text: 'Invalid rejection request. Please try again.'
-  });
-  return;
-}
-const approvalId = segments[2];
-
+    if (segments.length < 3 || !segments[2] || segments[2] === 'undefined') {
+      console.error("Invalid action_id format:", body.actions[0].action_id);
+      await client.chat.postMessage({
+        token: process.env.SLACK_BOT_TOKEN,
+        channel: body.user.id,
+        text: 'Invalid rejection request. Please try again.'
+      });
+      return;
+    }
+    const approvalId = segments[2];
     
     try {
       const approval = await TaskApproval.findById(approvalId);
       if (!approval) {
         throw new Error('Approval request not found');
       }
+
+      // Get user's subfunction from TaskStatus
+      const userTask = await TaskStatus.findOne({ userId: approval.userId });
+      if (!userTask) {
+        throw new Error('User task information not found');
+      }
+
+      const subFunction = userTask.subFunction;
+
+      // Select onboarding data based on subfunction
+      const selectedOnboardingData = subFunction === 'Channel Partnerships' ? channelOnboardingData : amOnboardingData;
 
       // Update approval status
       approval.status = 'rejected';
@@ -830,7 +937,7 @@ const approvalId = segments[2];
       await approval.save();
 
       // Update original message
-      const rejectedTask = amOnboardingData[approval.weekIndex].days[approval.dayIndex].events[approval.taskIndex];
+      const rejectedTask = selectedOnboardingData[approval.weekIndex].days[approval.dayIndex].events[approval.taskIndex];
       const rejectionBlocks = [
         {
           type: 'section',
@@ -841,15 +948,15 @@ const approvalId = segments[2];
           accessory: {
             type: 'button',
             text: { type: 'plain_text', text: 'Mark Complete', emoji: true },
-            action_id: `mark_complete_${approval.weekIndex}_${approval.dayIndex}_${approval.taskIndex}`
+            action_id: `mark_complete_${approval.weekIndex}_${approval.dayIndex}_${approval.taskIndex}_${approval.messageTs}`
           }
         }
       ];
 
       if (!client?.chat?.postMessage || !client?.chat?.update) {
-  console.error("Slack client is not properly initialized.");
-  return;
-}
+        console.error("Slack client is not properly initialized.");
+        return;
+      }
 
       await client.chat.update({
         token: process.env.SLACK_BOT_TOKEN,
@@ -877,7 +984,7 @@ const approvalId = segments[2];
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `❌ *Task Completion Request Rejected*\nUser: <@${approval.userId}>\nTask: ${rejectedTask.title}\nWeek: ${amOnboardingData[approval.weekIndex].week}\nDay: ${amOnboardingData[approval.weekIndex].days[approval.dayIndex].day}`
+              text: `❌ *Task Completion Request Rejected*\nUser: <@${approval.userId}>\nTask: ${rejectedTask.title}\nWeek: ${selectedOnboardingData[approval.weekIndex].week}\nDay: ${selectedOnboardingData[approval.weekIndex].days[approval.dayIndex].day}`
             }
           }
         ]
