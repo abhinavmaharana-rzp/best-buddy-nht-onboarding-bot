@@ -1,22 +1,19 @@
 // Description: This is the main entry point for the Slack app. It initializes the app, connects to MongoDB, and sets up routes for onboarding and checklist functionalities.
 require('dotenv').config();
-const { App, AwsLambdaReceiver } = require('@slack/bolt');
+const { App } = require('@slack/bolt');
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
 const onboardingRoutes = require('./routes/onboarding');
-const amOnboardingRoutes = require('./routes/amOnboarding');
 const checklistRoutes = require('./routes/checklist');
 const userLookupRoutes = require('./routes/userLookup');
 const dashboardRoutes = require('./routes/dashboard');
-const amDashboardRoutes = require('./routes/amDashboard');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpecs = require('./swagger');
 const authRoutes = require('./routes/auth');
 
 // Import the dashboard router creator
 const createDashboardRouter = require('./routes/dashboard');
-const createAmDashboardRouter = require('./routes/amDashboard');
 
 // Initializes your app with your bot token and signing secret
 const app = new App({
@@ -48,11 +45,9 @@ mongoose.connect(process.env.MONGODB_URI, {}).then(() => {
 // Routes
 expressApp.use('/auth', authRoutes);
 expressApp.use('/onboarding', onboardingRoutes(app));
-expressApp.use('/am-onboarding', amOnboardingRoutes(app));
 expressApp.use('/checklist', checklistRoutes(app));
 expressApp.use('/user-lookup', userLookupRoutes);
 expressApp.use('/dashboard', createDashboardRouter(app));
-expressApp.use('/am-dashboard', createAmDashboardRouter(app));
 
 // Serve login page at root
 expressApp.get('/', (req, res) => {
@@ -84,7 +79,6 @@ expressApp.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
       console.log(`⚡️ Express app is running on port ${process.env.PORT || 3000}`);
       console.log(`📚 API Documentation available at http://localhost:${process.env.PORT || 3000}/api-docs`);
       console.log(`📊 Dashboard available at http://localhost:${process.env.PORT || 3000}`);
-      console.log(`📊 AM Dashboard available at http://localhost:${process.env.PORT || 3000}/am-dashboard`);
     });
   } catch (error) {
     console.error('Error starting app:', error);
