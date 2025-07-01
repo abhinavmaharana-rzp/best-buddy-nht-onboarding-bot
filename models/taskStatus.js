@@ -1,5 +1,5 @@
 // models/taskStatus.js
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const taskStatusSchema = new mongoose.Schema({
   userId: { type: String, required: true }, // Slack User ID
@@ -9,4 +9,4 @@ const taskStatusSchema = new mongoose.Schema({
   completed: { type: Boolean, default: false },
 });
 
-module.exports = mongoose.model('TaskStatus', taskStatusSchema);
+module.exports = mongoose.model("TaskStatus", taskStatusSchema);

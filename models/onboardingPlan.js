@@ -1,27 +1,27 @@
 // models/onboardingPlan.js
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const onboardingPlanSchema = new mongoose.Schema({
   function: {
     type: String,
-    required: true
+    required: true,
   },
   subFunction: {
     type: String,
-    required: true
+    required: true,
   },
   tasks: [
     {
       id: {
         type: String,
-        required: true
+        required: true,
       },
       description: {
         type: String,
-        required: true
-      }
-    }
-  ]
+        required: true,
+      },
+    },
+  ],
 });
 
-mongoose.model('OnboardingPlan', onboardingPlanSchema);
+mongoose.model("OnboardingPlan", onboardingPlanSchema);

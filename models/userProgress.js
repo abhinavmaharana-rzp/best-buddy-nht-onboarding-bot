@@ -1,19 +1,20 @@
 // models/userProgress.js
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const userProgressSchema = new mongoose.Schema({
   userId: {
     type: String,
-    required: true
+    required: true,
   },
-  eventTitle: { // Changed from taskId to eventTitle
+  eventTitle: {
+    // Changed from taskId to eventTitle
     type: String,
-    required: true
+    required: true,
   },
   completed: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 });
 
-mongoose.model('UserProgress', userProgressSchema);
+mongoose.model("UserProgress", userProgressSchema);

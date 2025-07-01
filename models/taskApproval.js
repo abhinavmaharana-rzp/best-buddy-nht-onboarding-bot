@@ -1,53 +1,56 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const taskApprovalSchema = new mongoose.Schema({
   userId: {
     type: String,
     required: true,
-    index: true
+    index: true,
   },
   taskTitle: {
     type: String,
-    required: true
+    required: true,
   },
   weekIndex: {
     type: Number,
-    required: true
+    required: true,
   },
   dayIndex: {
     type: Number,
-    required: true
+    required: true,
   },
   taskIndex: {
     type: Number,
-    required: true
+    required: true,
   },
   status: {
     type: String,
-    enum: ['pending', 'approved', 'rejected'],
-    default: 'pending'
+    enum: ["pending", "approved", "rejected"],
+    default: "pending",
   },
   requestedAt: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   reviewedAt: {
-    type: Date
+    type: Date,
   },
   reviewedBy: {
-    type: String
+    type: String,
   },
   messageTs: {
     type: String,
-    required: true
+    required: true,
   },
   channelId: {
     type: String,
-    required: true
-  }
+    required: true,
+  },
 });
 
 // Compound index for user and task
-taskApprovalSchema.index({ userId: 1, weekIndex: 1, dayIndex: 1, taskIndex: 1 }, { unique: true });
+taskApprovalSchema.index(
+  { userId: 1, weekIndex: 1, dayIndex: 1, taskIndex: 1 },
+  { unique: true },
+);
 
-module.exports = mongoose.model('TaskApproval', taskApprovalSchema); 
+module.exports = mongoose.model("TaskApproval", taskApprovalSchema);

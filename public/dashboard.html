@@ -1,461 +1,596 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Onboarding Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css" rel="stylesheet">
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"
+      rel="stylesheet"
+    />
     <style>
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-                transition: transform 0.3s ease-in-out;
-            }
-            .sidebar.open {
-                transform: translateX(0);
-            }
-            .main-content {
-                margin-left: 0 !important;
-            }
-            .mobile-menu-button {
-                display: block !important;
-            }
+      @media (max-width: 768px) {
+        .sidebar {
+          transform: translateX(-100%);
+          transition: transform 0.3s ease-in-out;
+        }
+        .sidebar.open {
+          transform: translateX(0);
+        }
+        .main-content {
+          margin-left: 0 !important;
+        }
+        .mobile-menu-button {
+          display: block !important;
+        }
+      }
+
+      /* Loading spinner */
+      .loading-spinner {
+        display: inline-block;
+        width: 1.5rem;
+        height: 1.5rem;
+        border: 3px solid rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        border-top-color: #3b82f6;
+        animation: spin 1s ease-in-out infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Toast notifications */
+      .toast {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        z-index: 50;
+        animation: slideIn 0.3s ease-out;
+      }
+
+      .toast-success {
+        background-color: #dcfce7;
+        border: 1px solid #86efac;
+        color: #166534;
+      }
+
+      .toast-error {
+        background-color: #fee2e2;
+        border: 1px solid #fca5a5;
+        color: #991b1b;
+      }
+
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+        }
+        to {
+          transform: translateX(0);
+        }
+      }
+
+      /* Table responsive improvements */
+      .table-container {
+        position: relative;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .table-container::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 1rem;
+        background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.05));
+        pointer-events: none;
+      }
+
+      /* Mobile optimizations */
+      @media (max-width: 640px) {
+        .card-grid {
+          grid-template-columns: 1fr;
         }
 
-        /* Loading spinner */
-        .loading-spinner {
-            display: inline-block;
-            width: 1.5rem;
-            height: 1.5rem;
-            border: 3px solid rgba(0, 0, 0, 0.1);
-            border-radius: 50%;
-            border-top-color: #3b82f6;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Toast notifications */
-        .toast {
-            position: fixed;
-            top: 1rem;
-            right: 1rem;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            z-index: 50;
-            animation: slideIn 0.3s ease-out;
-        }
-
-        .toast-success {
-            background-color: #dcfce7;
-            border: 1px solid #86efac;
-            color: #166534;
-        }
-
-        .toast-error {
-            background-color: #fee2e2;
-            border: 1px solid #fca5a5;
-            color: #991b1b;
-        }
-
-        @keyframes slideIn {
-            from { transform: translateX(100%); }
-            to { transform: translateX(0); }
-        }
-
-        /* Table responsive improvements */
         .table-container {
-            position: relative;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+          margin: 0 -1rem;
+          padding: 0 1rem;
         }
 
-        .table-container::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            width: 1rem;
-            background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.05));
-            pointer-events: none;
+        .toast {
+          left: 1rem;
+          right: 1rem;
+          text-align: center;
         }
-
-        /* Mobile optimizations */
-        @media (max-width: 640px) {
-            .card-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .table-container {
-                margin: 0 -1rem;
-                padding: 0 1rem;
-            }
-
-            .toast {
-                left: 1rem;
-                right: 1rem;
-                text-align: center;
-            }
-        }
+      }
     </style>
-</head>
-<body class="bg-gray-100">
+  </head>
+  <body class="bg-gray-100">
     <div class="min-h-screen">
-        <!-- Mobile Menu Button -->
-        <button id="mobileMenuButton" class="mobile-menu-button fixed top-4 left-4 z-50 p-2 rounded-md bg-blue-600 text-white hidden focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <i class="fas fa-bars"></i>
-        </button>
+      <!-- Mobile Menu Button -->
+      <button
+        id="mobileMenuButton"
+        class="mobile-menu-button fixed top-4 left-4 z-50 p-2 rounded-md bg-blue-600 text-white hidden focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <i class="fas fa-bars"></i>
+      </button>
 
-        <!-- Sidebar -->
-        <div id="sidebar" class="sidebar fixed inset-y-0 left-0 w-64 bg-white shadow-lg z-40">
-            <div class="flex items-center justify-between h-16 bg-blue-600 px-4">
-                <h1 class="text-white text-xl font-bold">Onboarding Dashboard</h1>
-                <button id="closeSidebar" class="text-white md:hidden focus:outline-none">
-                    <i class="fas fa-times"></i>
-                </button>
+      <!-- Sidebar -->
+      <div
+        id="sidebar"
+        class="sidebar fixed inset-y-0 left-0 w-64 bg-white shadow-lg z-40"
+      >
+        <div class="flex items-center justify-between h-16 bg-blue-600 px-4">
+          <h1 class="text-white text-xl font-bold">Onboarding Dashboard</h1>
+          <button
+            id="closeSidebar"
+            class="text-white md:hidden focus:outline-none"
+          >
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <nav class="mt-6">
+          <a
+            href="#overview"
+            class="flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+          >
+            <i class="fas fa-chart-line w-5"></i>
+            <span class="mx-3">Overview</span>
+          </a>
+          <a
+            href="#users"
+            class="flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+          >
+            <i class="fas fa-users w-5"></i>
+            <span class="mx-3">Users</span>
+          </a>
+          <a
+            href="#approvals"
+            class="flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+          >
+            <i class="fas fa-tasks w-5"></i>
+            <span class="mx-3">Approvals</span>
+          </a>
+          <a
+            href="#trigger"
+            class="flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+          >
+            <i class="fas fa-plus w-5"></i>
+            <span class="mx-3">Trigger Onboarding</span>
+          </a>
+          <button
+            onclick="handleLogout()"
+            class="w-full flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 mt-auto"
+          >
+            <i class="fas fa-sign-out-alt w-5"></i>
+            <span class="mx-3">Logout</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Main Content -->
+      <div id="mainContent" class="main-content ml-64 p-4 md:p-8">
+        <!-- Overview Section -->
+        <div id="overview" class="mb-8">
+          <h2 class="text-2xl font-bold mb-4">Overview</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white rounded-lg shadow p-6">
+              <div class="flex items-center">
+                <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                  <i class="fas fa-clock text-xl"></i>
+                </div>
+                <div class="ml-4">
+                  <p class="text-gray-500">Pending Approvals</p>
+                  <p class="text-2xl font-semibold" id="pendingApprovals">-</p>
+                </div>
+              </div>
             </div>
-            <nav class="mt-6">
-                <a href="#overview" class="flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600">
-                    <i class="fas fa-chart-line w-5"></i>
-                    <span class="mx-3">Overview</span>
-                </a>
-                <a href="#users" class="flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600">
-                    <i class="fas fa-users w-5"></i>
-                    <span class="mx-3">Users</span>
-                </a>
-                <a href="#approvals" class="flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600">
-                    <i class="fas fa-tasks w-5"></i>
-                    <span class="mx-3">Approvals</span>
-                </a>
-                <a href="#trigger" class="flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600">
-                    <i class="fas fa-plus w-5"></i>
-                    <span class="mx-3">Trigger Onboarding</span>
-                </a>
-                <button onclick="handleLogout()" class="w-full flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 mt-auto">
-                    <i class="fas fa-sign-out-alt w-5"></i>
-                    <span class="mx-3">Logout</span>
-                </button>
-            </nav>
+            <div class="bg-white rounded-lg shadow p-6">
+              <div class="flex items-center">
+                <div class="p-3 rounded-full bg-green-100 text-green-600">
+                  <i class="fas fa-users text-xl"></i>
+                </div>
+                <div class="ml-4">
+                  <p class="text-gray-500">Total Users</p>
+                  <p class="text-2xl font-semibold" id="totalUsers">-</p>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+              <div class="flex items-center">
+                <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                  <i class="fas fa-tasks text-xl"></i>
+                </div>
+                <div class="ml-4">
+                  <p class="text-gray-500">Task Completion</p>
+                  <p class="text-2xl font-semibold" id="taskCompletion">-</p>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+              <div class="flex items-center">
+                <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                  <i class="fas fa-clipboard-check text-xl"></i>
+                </div>
+                <div class="ml-4">
+                  <p class="text-gray-500">Checklist Completion</p>
+                  <p class="text-2xl font-semibold" id="checklistCompletion">
+                    -
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- Main Content -->
-        <div id="mainContent" class="main-content ml-64 p-4 md:p-8">
-            <!-- Overview Section -->
-            <div id="overview" class="mb-8">
-                <h2 class="text-2xl font-bold mb-4">Overview</h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="bg-white rounded-lg shadow p-6">
-                        <div class="flex items-center">
-                            <div class="p-3 rounded-full bg-blue-100 text-blue-600">
-                                <i class="fas fa-clock text-xl"></i>
-                            </div>
-                            <div class="ml-4">
-                                <p class="text-gray-500">Pending Approvals</p>
-                                <p class="text-2xl font-semibold" id="pendingApprovals">-</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-lg shadow p-6">
-                        <div class="flex items-center">
-                            <div class="p-3 rounded-full bg-green-100 text-green-600">
-                                <i class="fas fa-users text-xl"></i>
-                            </div>
-                            <div class="ml-4">
-                                <p class="text-gray-500">Total Users</p>
-                                <p class="text-2xl font-semibold" id="totalUsers">-</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-lg shadow p-6">
-                        <div class="flex items-center">
-                            <div class="p-3 rounded-full bg-purple-100 text-purple-600">
-                                <i class="fas fa-tasks text-xl"></i>
-                            </div>
-                            <div class="ml-4">
-                                <p class="text-gray-500">Task Completion</p>
-                                <p class="text-2xl font-semibold" id="taskCompletion">-</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-lg shadow p-6">
-                        <div class="flex items-center">
-                            <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
-                                <i class="fas fa-clipboard-check text-xl"></i>
-                            </div>
-                            <div class="ml-4">
-                                <p class="text-gray-500">Checklist Completion</p>
-                                <p class="text-2xl font-semibold" id="checklistCompletion">-</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Users Section -->
-            <div id="users" class="mb-8">
-                <h2 class="text-2xl font-bold mb-4">Users</h2>
-                <div class="bg-white rounded-lg shadow overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task Progress</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Checklist Progress</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200" id="usersTableBody">
-                            <!-- User rows will be inserted here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Approvals Section -->
-            <div id="approvals" class="mb-8">
-                <h2 class="text-2xl font-bold mb-4">Approval Requests</h2>
-                <div class="bg-white rounded-lg shadow overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200" id="approvalsTableBody">
-                            <!-- Approval rows will be inserted here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Trigger Onboarding Section -->
-            <div id="trigger" class="mb-8">
-                <h2 class="text-2xl font-bold mb-4">Trigger Onboarding</h2>
-                <div class="bg-white rounded-lg shadow p-4 md:p-6">
-                    <form id="triggerForm" class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Email</label>
-                            <input type="email" name="email" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Function</label>
-                            <input type="text" name="function" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Sub-function</label>
-                            <select name="subFunction" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="SR">SR</option>
-                                <option value="Integrations">Integrations</option>
-                                <option value="Tech Support">Tech Support</option>
-                                <option value="TAM">TAM</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">User Name</label>
-                            <input type="text" name="userName" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-                        <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                            Trigger Onboarding
-                        </button>
-                    </form>
-                </div>
-            </div>
+        <!-- Users Section -->
+        <div id="users" class="mb-8">
+          <h2 class="text-2xl font-bold mb-4">Users</h2>
+          <div class="bg-white rounded-lg shadow overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th
+                    class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    User
+                  </th>
+                  <th
+                    class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Task Progress
+                  </th>
+                  <th
+                    class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Checklist Progress
+                  </th>
+                  <th
+                    class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                class="bg-white divide-y divide-gray-200"
+                id="usersTableBody"
+              >
+                <!-- User rows will be inserted here -->
+              </tbody>
+            </table>
+          </div>
         </div>
+
+        <!-- Approvals Section -->
+        <div id="approvals" class="mb-8">
+          <h2 class="text-2xl font-bold mb-4">Approval Requests</h2>
+          <div class="bg-white rounded-lg shadow overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th
+                    class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    User
+                  </th>
+                  <th
+                    class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Task
+                  </th>
+                  <th
+                    class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Status
+                  </th>
+                  <th
+                    class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Requested
+                  </th>
+                  <th
+                    class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                class="bg-white divide-y divide-gray-200"
+                id="approvalsTableBody"
+              >
+                <!-- Approval rows will be inserted here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Trigger Onboarding Section -->
+        <div id="trigger" class="mb-8">
+          <h2 class="text-2xl font-bold mb-4">Trigger Onboarding</h2>
+          <div class="bg-white rounded-lg shadow p-4 md:p-6">
+            <form id="triggerForm" class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700"
+                  >Email</label
+                >
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700"
+                  >Function</label
+                >
+                <input
+                  type="text"
+                  name="function"
+                  required
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700"
+                  >Sub-function</label
+                >
+                <select
+                  name="subFunction"
+                  required
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                >
+                  <option value="SR">SR</option>
+                  <option value="Integrations">Integrations</option>
+                  <option value="Tech Support">Tech Support</option>
+                  <option value="TAM">TAM</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700"
+                  >User Name</label
+                >
+                <input
+                  type="text"
+                  name="userName"
+                  required
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+              <button
+                type="submit"
+                class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Trigger Onboarding
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- View Tasks Modal -->
-    <div id="viewTasksModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
-        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-96 shadow-lg rounded-md bg-white">
-            <div class="mt-3 text-center">
-                <h3 class="text-lg leading-6 font-medium text-gray-900">View User's Tasks</h3>
-                <div class="mt-2 px-7 py-3">
-                    <p class="text-sm text-gray-500" id="modalUserName"></p>
-                </div>
-                <div class="items-center px-4 py-3">
-                    <button id="viewTasksButton" class="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300">
-                        View Tasks
-                    </button>
-                    <button onclick="closeModal()" class="ml-3 px-4 py-2 bg-gray-100 text-gray-700 text-base font-medium rounded-md shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300">
-                        Close
-                    </button>
-                </div>
-            </div>
+    <div
+      id="viewTasksModal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50"
+    >
+      <div
+        class="relative top-20 mx-auto p-5 border w-11/12 md:w-96 shadow-lg rounded-md bg-white"
+      >
+        <div class="mt-3 text-center">
+          <h3 class="text-lg leading-6 font-medium text-gray-900">
+            View User's Tasks
+          </h3>
+          <div class="mt-2 px-7 py-3">
+            <p class="text-sm text-gray-500" id="modalUserName"></p>
+          </div>
+          <div class="items-center px-4 py-3">
+            <button
+              id="viewTasksButton"
+              class="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            >
+              View Tasks
+            </button>
+            <button
+              onclick="closeModal()"
+              class="ml-3 px-4 py-2 bg-gray-100 text-gray-700 text-base font-medium rounded-md shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300"
+            >
+              Close
+            </button>
+          </div>
         </div>
+      </div>
     </div>
 
     <!-- Add loading overlay -->
-    <div id="loadingOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white p-4 rounded-lg shadow-lg flex items-center space-x-3">
-            <div class="loading-spinner"></div>
-            <span class="text-gray-700">Loading...</span>
-        </div>
+    <div
+      id="loadingOverlay"
+      class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 flex items-center justify-center"
+    >
+      <div
+        class="bg-white p-4 rounded-lg shadow-lg flex items-center space-x-3"
+      >
+        <div class="loading-spinner"></div>
+        <span class="text-gray-700">Loading...</span>
+      </div>
     </div>
 
     <!-- Add toast container -->
     <div id="toastContainer" class="fixed top-4 right-4 z-50"></div>
 
     <script>
-        // Debug utilities
-        const DEBUG = true; // Set to false in production
+      // Debug utilities
+      const DEBUG = true; // Set to false in production
 
-        function debugLog(...args) {
-            if (DEBUG) {
-                console.log('[DEBUG]', ...args);
-            }
+      function debugLog(...args) {
+        if (DEBUG) {
+          console.log("[DEBUG]", ...args);
         }
+      }
 
-        function showError(message, duration = 5000) {
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded';
-            errorDiv.innerHTML = `
+      function showError(message, duration = 5000) {
+        const errorDiv = document.createElement("div");
+        errorDiv.className =
+          "fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded";
+        errorDiv.innerHTML = `
                 <strong class="font-bold">Error!</strong>
                 <span class="block sm:inline">${message}</span>
             `;
-            document.body.appendChild(errorDiv);
-            setTimeout(() => errorDiv.remove(), duration);
+        document.body.appendChild(errorDiv);
+        setTimeout(() => errorDiv.remove(), duration);
+      }
+
+      // Enhanced fetch with better error handling
+      async function fetchWithAuth(url, options = {}) {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          window.location.href = "/login.html";
+          return;
         }
 
-        // Enhanced fetch with better error handling
-          async function fetchWithAuth(url, options = {}) {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                window.location.href = '/login.html';
-                return;
-            }
+        const defaultOptions = {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        };
 
-            const defaultOptions = {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            };
+        try {
+          const response = await fetch(url, { ...defaultOptions, ...options });
 
-            try {
-                const response = await fetch(url, { ...defaultOptions, ...options });
+          if (response.status === 401) {
+            localStorage.removeItem("token");
+            window.location.href = "/login.html";
+            return;
+          }
 
-                if (response.status === 401) {
-                    localStorage.removeItem('token');
-                    window.location.href = '/login.html';
-                    return;
-                }
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+          return response;
+        } catch (error) {
+          console.error("Fetch error:", error);
+          throw error;
+        }
+      }
 
-                return response;
-            } catch (error) {
-                console.error('Fetch error:', error);
-                throw error;
-            }
+      // Check authentication with retry
+      async function checkAuth(retries = 3) {
+        const token = localStorage.getItem("token");
+        debugLog("Checking auth, token present:", !!token);
+
+        if (!token) {
+          window.location.href = "/login.html";
+          return;
         }
 
-        // Check authentication with retry
-        async function checkAuth(retries = 3) {
-            const token = localStorage.getItem('token');
-            debugLog('Checking auth, token present:', !!token);
-
-            if (!token) {
-                window.location.href = '/login.html';
-                return;
+        for (let i = 0; i < retries; i++) {
+          try {
+            const response = await fetchWithAuth("/auth/verify");
+            if (response && response.ok) {
+              debugLog("Auth check successful");
+              return;
             }
-
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const response = await fetchWithAuth('/auth/verify');
-                    if (response && response.ok) {
-                        debugLog('Auth check successful');
-                        return;
-                    }
-                } catch (error) {
-                    debugLog(`Auth check attempt ${i + 1} failed:`, error);
-                    if (i === retries - 1) {
-                        localStorage.removeItem('token');
-                        window.location.href = '/login.html';
-                    }
-                    await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
-                }
+          } catch (error) {
+            debugLog(`Auth check attempt ${i + 1} failed:`, error);
+            if (i === retries - 1) {
+              localStorage.removeItem("token");
+              window.location.href = "/login.html";
             }
+            await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
+          }
         }
+      }
 
-        // Enhanced data fetching functions
-        async function fetchOverview() {
-            showLoading();
-            try {
-                const response = await fetchWithAuth('/dashboard/overview');
-                if (!response) return;
-                
-                const data = await response.json();
-                debugLog('Overview data:', data);
-                
-                // Add null checks and default values
-                document.getElementById('pendingApprovals').textContent = data.pendingApprovals || 0;
-                document.getElementById('totalUsers').textContent = data.totalUsers || 0;
-                
-                const taskCompletionRate = data.taskCompletion?.rate || 0;
-                const checklistCompletionRate = data.checklistCompletion?.rate || 0;
-                
-                document.getElementById('taskCompletion').textContent = `${taskCompletionRate.toFixed(1)}%`;
-                document.getElementById('checklistCompletion').textContent = `${checklistCompletionRate.toFixed(1)}%`;
-                
-                showToast('Overview data updated successfully', 'success', 2000);
-            } catch (error) {
-                debugLog('Error fetching overview:', error);
-                showError('Failed to load overview data');
-            } finally {
-                hideLoading();
-            }
+      // Enhanced data fetching functions
+      async function fetchOverview() {
+        showLoading();
+        try {
+          const response = await fetchWithAuth("/dashboard/overview");
+          if (!response) return;
+
+          const data = await response.json();
+          debugLog("Overview data:", data);
+
+          // Add null checks and default values
+          document.getElementById("pendingApprovals").textContent =
+            data.pendingApprovals || 0;
+          document.getElementById("totalUsers").textContent =
+            data.totalUsers || 0;
+
+          const taskCompletionRate = data.taskCompletion?.rate || 0;
+          const checklistCompletionRate = data.checklistCompletion?.rate || 0;
+
+          document.getElementById("taskCompletion").textContent =
+            `${taskCompletionRate.toFixed(1)}%`;
+          document.getElementById("checklistCompletion").textContent =
+            `${checklistCompletionRate.toFixed(1)}%`;
+
+          showToast("Overview data updated successfully", "success", 2000);
+        } catch (error) {
+          debugLog("Error fetching overview:", error);
+          showError("Failed to load overview data");
+        } finally {
+          hideLoading();
         }
+      }
 
-        // Add mobile menu functionality
-        const mobileMenuButton = document.getElementById('mobileMenuButton');
-        const closeSidebarButton = document.getElementById('closeSidebar');
-        const sidebar = document.getElementById('sidebar');
-        const mainContent = document.getElementById('mainContent');
+      // Add mobile menu functionality
+      const mobileMenuButton = document.getElementById("mobileMenuButton");
+      const closeSidebarButton = document.getElementById("closeSidebar");
+      const sidebar = document.getElementById("sidebar");
+      const mainContent = document.getElementById("mainContent");
 
-        function toggleSidebar() {
-            sidebar.classList.toggle('open');
+      function toggleSidebar() {
+        sidebar.classList.toggle("open");
+      }
+
+      mobileMenuButton.addEventListener("click", toggleSidebar);
+      closeSidebarButton.addEventListener("click", toggleSidebar);
+
+      // Close sidebar when clicking outside on mobile
+      document.addEventListener("click", (e) => {
+        if (
+          window.innerWidth <= 768 &&
+          !sidebar.contains(e.target) &&
+          !mobileMenuButton.contains(e.target) &&
+          sidebar.classList.contains("open")
+        ) {
+          toggleSidebar();
         }
+      });
 
-        mobileMenuButton.addEventListener('click', toggleSidebar);
-        closeSidebarButton.addEventListener('click', toggleSidebar);
+      // Handle logout
+      function handleLogout() {
+        localStorage.removeItem("token");
+        window.location.href = "/login.html";
+      }
 
-        // Close sidebar when clicking outside on mobile
-        document.addEventListener('click', (e) => {
-            if (window.innerWidth <= 768 && 
-                !sidebar.contains(e.target) && 
-                !mobileMenuButton.contains(e.target) && 
-                sidebar.classList.contains('open')) {
-                toggleSidebar();
-            }
-        });
+      // Update table row generation for better mobile display
+      function generateUserRow(user) {
+        console.log("Generating row for user:", user);
+        const taskProgress = user.taskProgress?.percentage || 0;
+        const checklistProgress = user.checklistProgress?.percentage || 0;
 
-        // Handle logout
-        function handleLogout() {
-            localStorage.removeItem('token');
-            window.location.href = '/login.html';
-        }
-
-        // Update table row generation for better mobile display
-        function generateUserRow(user) {
-            console.log('Generating row for user:', user);
-            const taskProgress = user.taskProgress?.percentage || 0;
-            const checklistProgress = user.checklistProgress?.percentage || 0;
-            
-            return `
+        return `
                 <tr class="hover:bg-gray-50">
                     <td class="px-4 md:px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
-                            <input type="checkbox" class="user-checkbox mr-2" data-user-id="${user.id || 'Unknown'}">
-                            <div class="text-sm font-medium text-gray-900">${user.email || 'Unknown User'}</div>
+                            <input type="checkbox" class="user-checkbox mr-2" data-user-id="${user.id || "Unknown"}">
+                            <div class="text-sm font-medium text-gray-900">${user.email || "Unknown User"}</div>
                         </div>
                     </td>
                     <td class="px-4 md:px-6 py-4 whitespace-nowrap">
@@ -476,11 +611,11 @@
                     </td>
                     <td class="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div class="flex space-x-2">
-                            <button onclick="showViewTasksModal('${user.name || 'Unknown'}', '${user.id || ''}')" 
+                            <button onclick="showViewTasksModal('${user.name || "Unknown"}', '${user.id || ""}')" 
                                 class="text-blue-600 hover:text-blue-900">
                                 <i class="fas fa-tasks"></i> <span class="hidden md:inline">View Tasks</span>
                             </button>
-                            <button onclick="showUserDetails('${user.id || ''}')" 
+                            <button onclick="showUserDetails('${user.id || ""}')" 
                                 class="text-gray-600 hover:text-gray-900">
                                 <i class="fas fa-info-circle"></i>
                             </button>
@@ -488,420 +623,459 @@
                     </td>
                 </tr>
             `;
-        }
+      }
 
-        // Update the fetchUsers function to handle missing data
-        async function fetchUsers() {
-            showLoading();
-            try {
-                const response = await fetchWithAuth('/dashboard/users');
-                if (!response) return;
-                
-                const users = await response.json();
-                debugLog('Users data:', users);
-                
-                // Add data validation
-                const validUsers = users.map(user => ({
-                    ...user,
-                    taskProgress: {
-                        percentage: user.taskProgress?.percentage || 0
-                    },
-                    checklistProgress: {
-                        percentage: user.checklistProgress?.percentage || 0
-                    }
-                }));
-                
-                const tbody = document.getElementById('usersTableBody');
-                tbody.innerHTML = validUsers.map(generateUserRow).join('');
-                
-                showToast('Users data updated successfully', 'success', 2000);
-            } catch (error) {
-                debugLog('Error fetching users:', error);
-                showError('Failed to load user data');
-            } finally {
-                hideLoading();
-            }
-        }
+      // Update the fetchUsers function to handle missing data
+      async function fetchUsers() {
+        showLoading();
+        try {
+          const response = await fetchWithAuth("/dashboard/users");
+          if (!response) return;
 
-        // Update the fetchApprovals function to handle missing data
-        async function fetchApprovals() {
-            showLoading();
-            try {
-                const response = await fetchWithAuth('/dashboard/approvals');
-                if (!response) return;
-                
-                const approvals = await response.json();
-                debugLog('Approvals data:', approvals);
-                
-                const tbody = document.getElementById('approvalsTableBody');
-                tbody.innerHTML = approvals.map(approval => `
+          const users = await response.json();
+          debugLog("Users data:", users);
+
+          // Add data validation
+          const validUsers = users.map((user) => ({
+            ...user,
+            taskProgress: {
+              percentage: user.taskProgress?.percentage || 0,
+            },
+            checklistProgress: {
+              percentage: user.checklistProgress?.percentage || 0,
+            },
+          }));
+
+          const tbody = document.getElementById("usersTableBody");
+          tbody.innerHTML = validUsers.map(generateUserRow).join("");
+
+          showToast("Users data updated successfully", "success", 2000);
+        } catch (error) {
+          debugLog("Error fetching users:", error);
+          showError("Failed to load user data");
+        } finally {
+          hideLoading();
+        }
+      }
+
+      // Update the fetchApprovals function to handle missing data
+      async function fetchApprovals() {
+        showLoading();
+        try {
+          const response = await fetchWithAuth("/dashboard/approvals");
+          if (!response) return;
+
+          const approvals = await response.json();
+          debugLog("Approvals data:", approvals);
+
+          const tbody = document.getElementById("approvalsTableBody");
+          tbody.innerHTML = approvals
+            .map(
+              (approval) => `
                     <tr class="hover:bg-gray-50">
-                        <td class="px-4 md:px-6 py-4 whitespace-nowrap">${approval.user.email || 'Unknown User'}</td>
-                        <td class="px-4 md:px-6 py-4 whitespace-nowrap">${approval.taskTitle || 'Unknown Task'}</td>
+                        <td class="px-4 md:px-6 py-4 whitespace-nowrap">${approval.user.email || "Unknown User"}</td>
+                        <td class="px-4 md:px-6 py-4 whitespace-nowrap">${approval.taskTitle || "Unknown Task"}</td>
                         <td class="px-4 md:px-6 py-4 whitespace-nowrap">
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                ${approval.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                                  approval.status === 'approved' ? 'bg-green-100 text-green-800' : 
-                                  'bg-red-100 text-red-800'}">
-                                ${approval.status || 'unknown'}
+                                ${
+                                  approval.status === "pending"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : approval.status === "approved"
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-red-100 text-red-800"
+                                }">
+                                ${approval.status || "unknown"}
                             </span>
                         </td>
                         <td class="px-4 md:px-6 py-4 whitespace-nowrap">${new Date(approval.requestedAt || Date.now()).toLocaleDateString()}</td>
                         <td class="px-4 md:px-6 py-4 whitespace-nowrap">
-                            ${approval.status === 'pending' ? `
-                                <button onclick="handleApproval('${approval._id || ''}', 'approved', '${approval.userName || ''}', '${approval.userId || ''}')" 
+                            ${
+                              approval.status === "pending"
+                                ? `
+                                <button onclick="handleApproval('${approval._id || ""}', 'approved', '${approval.userName || ""}', '${approval.userId || ""}')" 
                                     class="text-green-600 hover:text-green-900 mr-2">
                                     <i class="fas fa-check"></i>
                                 </button>
-                                <button onclick="handleApproval('${approval._id || ''}', 'rejected', '${approval.userName || ''}', '${approval.userId || ''}')" 
+                                <button onclick="handleApproval('${approval._id || ""}', 'rejected', '${approval.userName || ""}', '${approval.userId || ""}')" 
                                     class="text-red-600 hover:text-red-900">
                                     <i class="fas fa-times"></i>
                                 </button>
-                            ` : `
-                                <button onclick="showViewTasksModal('${approval.userName || ''}', '${approval.userId || ''}')" 
+                            `
+                                : `
+                                <button onclick="showViewTasksModal('${approval.userName || ""}', '${approval.userId || ""}')" 
                                     class="text-blue-600 hover:text-blue-900">
                                     <i class="fas fa-tasks"></i> <span class="hidden md:inline">View Tasks</span>
                                 </button>
-                            `}
+                            `
+                            }
                         </td>
                     </tr>
-                `).join('');
-                
-                showToast('Approvals data updated successfully', 'success', 2000);
-            } catch (error) {
-                debugLog('Error fetching approvals:', error);
-                showError('Failed to load approval data');
-            } finally {
-                hideLoading();
-            }
+                `,
+            )
+            .join("");
+
+          showToast("Approvals data updated successfully", "success", 2000);
+        } catch (error) {
+          debugLog("Error fetching approvals:", error);
+          showError("Failed to load approval data");
+        } finally {
+          hideLoading();
         }
+      }
 
-        let currentUserId = null;
+      let currentUserId = null;
 
-        function showViewTasksModal(userName, userId) {
-            if (!userId) {
-                showError('Invalid user ID');
-                return;
-            }
-            currentUserId = userId;
-            document.getElementById('modalUserName').textContent = `View tasks for ${userName || 'User'}`;
-            document.getElementById('viewTasksModal').classList.remove('hidden');
+      function showViewTasksModal(userName, userId) {
+        if (!userId) {
+          showError("Invalid user ID");
+          return;
         }
+        currentUserId = userId;
+        document.getElementById("modalUserName").textContent =
+          `View tasks for ${userName || "User"}`;
+        document.getElementById("viewTasksModal").classList.remove("hidden");
+      }
 
-        function closeModal() {
-            document.getElementById('viewTasksModal').classList.add('hidden');
-            currentUserId = null;
-        }
+      function closeModal() {
+        document.getElementById("viewTasksModal").classList.add("hidden");
+        currentUserId = null;
+      }
 
-        document.getElementById('viewTasksButton').addEventListener('click', () => {
-            if (currentUserId) {
-                viewUserTasks(currentUserId);
-            } else {
-                showError('No user selected');
-            }
+      document
+        .getElementById("viewTasksButton")
+        .addEventListener("click", () => {
+          if (currentUserId) {
+            viewUserTasks(currentUserId);
+          } else {
+            showError("No user selected");
+          }
         });
 
-        async function handleApproval(approvalId, status, userName, userId) {
-            try {
-                debugLog('Handling approval:', approvalId, status);
-                const response = await fetchWithAuth(`/user-lookup/task-approval/${approvalId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ status })
-                });
-                
-                if (response && response.ok) {
-                    showToast(`Task ${status} successfully`, 'success', 3000);
-                    // Show the view tasks button immediately after approval
-                    const row = document.querySelector(`tr[data-approval-id="${approvalId}"]`);
-                    if (row) {
-                        const actionsCell = row.querySelector('td:last-child');
-                        actionsCell.innerHTML = `
+      async function handleApproval(approvalId, status, userName, userId) {
+        try {
+          debugLog("Handling approval:", approvalId, status);
+          const response = await fetchWithAuth(
+            `/user-lookup/task-approval/${approvalId}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ status }),
+            },
+          );
+
+          if (response && response.ok) {
+            showToast(`Task ${status} successfully`, "success", 3000);
+            // Show the view tasks button immediately after approval
+            const row = document.querySelector(
+              `tr[data-approval-id="${approvalId}"]`,
+            );
+            if (row) {
+              const actionsCell = row.querySelector("td:last-child");
+              actionsCell.innerHTML = `
                             <button onclick="showViewTasksModal('${userName}', '${userId}')" 
                                 class="text-blue-600 hover:text-blue-900">
                                 <i class="fas fa-tasks"></i> View Tasks
                             </button>
                         `;
-                    }
-                    fetchApprovals();
-                    fetchOverview();
-                }
-            } catch (error) {
-                debugLog('Error handling approval:', error);
-                showError('Failed to update approval status');
             }
+            fetchApprovals();
+            fetchOverview();
+          }
+        } catch (error) {
+          debugLog("Error handling approval:", error);
+          showError("Failed to update approval status");
         }
+      }
 
-        // Update the trigger form submission handler
-        document.getElementById('triggerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            showLoading();
-            const formData = new FormData(e.target);
-            
-            try {
-                debugLog('Triggering onboarding with data:', Object.fromEntries(formData));
-                const response = await fetchWithAuth('/dashboard/trigger-onboarding', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        email: formData.get('email'),
-                        function: formData.get('function'),
-                        subFunction: formData.get('subFunction'),
-                        userName: formData.get('userName')
-                    })
-                });
-                
-                if (!response) {
-                    showError('Authentication failed. Please log in again.');
-                    return;
-                }
-                
-                const result = await response.json();
-                
-                if (response.ok) {
-                    showToast('Onboarding triggered successfully', 'success', 3000);
-                    e.target.reset();
-                    // Refresh the dashboard data
-                    await Promise.all([
-                        fetchOverview(),
-                        fetchUsers()
-                    ]);
-                } else {
-                    throw new Error(result.message || 'Failed to trigger onboarding');
-                }
-            } catch (error) {
-                debugLog('Error triggering onboarding:', error);
-                showError(error.message || 'Failed to trigger onboarding');
-            } finally {
-                hideLoading();
+      // Update the trigger form submission handler
+      document
+        .getElementById("triggerForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          showLoading();
+          const formData = new FormData(e.target);
+
+          try {
+            debugLog(
+              "Triggering onboarding with data:",
+              Object.fromEntries(formData),
+            );
+            const response = await fetchWithAuth(
+              "/dashboard/trigger-onboarding",
+              {
+                method: "POST",
+                body: JSON.stringify({
+                  email: formData.get("email"),
+                  function: formData.get("function"),
+                  subFunction: formData.get("subFunction"),
+                  userName: formData.get("userName"),
+                }),
+              },
+            );
+
+            if (!response) {
+              showError("Authentication failed. Please log in again.");
+              return;
             }
+
+            const result = await response.json();
+
+            if (response.ok) {
+              showToast("Onboarding triggered successfully", "success", 3000);
+              e.target.reset();
+              // Refresh the dashboard data
+              await Promise.all([fetchOverview(), fetchUsers()]);
+            } else {
+              throw new Error(result.message || "Failed to trigger onboarding");
+            }
+          } catch (error) {
+            debugLog("Error triggering onboarding:", error);
+            showError(error.message || "Failed to trigger onboarding");
+          } finally {
+            hideLoading();
+          }
         });
 
-        // Add loading state management
-        function showLoading() {
-            document.getElementById('loadingOverlay').classList.remove('hidden');
-        }
+      // Add loading state management
+      function showLoading() {
+        document.getElementById("loadingOverlay").classList.remove("hidden");
+      }
 
-        function hideLoading() {
-            document.getElementById('loadingOverlay').classList.add('hidden');
-        }
+      function hideLoading() {
+        document.getElementById("loadingOverlay").classList.add("hidden");
+      }
 
-        // Enhanced toast notification
-        function showToast(message, type = 'success', duration = 3000) {
-            const toast = document.createElement('div');
-            toast.className = `toast toast-${type}`;
-            toast.innerHTML = `
+      // Enhanced toast notification
+      function showToast(message, type = "success", duration = 3000) {
+        const toast = document.createElement("div");
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = `
                 <div class="flex items-center">
-                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>
+                    <i class="fas fa-${type === "success" ? "check-circle" : "exclamation-circle"} mr-2"></i>
                     <span>${message}</span>
                 </div>
             `;
-            
-            const container = document.getElementById('toastContainer');
-            container.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.style.animation = 'slideIn 0.3s ease-out reverse';
-                setTimeout(() => toast.remove(), 300);
-            }, duration);
-        }
 
-        // Update table containers
-        document.querySelectorAll('.bg-white.rounded-lg.shadow.overflow-x-auto').forEach(container => {
-            container.classList.add('table-container');
+        const container = document.getElementById("toastContainer");
+        container.appendChild(toast);
+
+        setTimeout(() => {
+          toast.style.animation = "slideIn 0.3s ease-out reverse";
+          setTimeout(() => toast.remove(), 300);
+        }, duration);
+      }
+
+      // Update table containers
+      document
+        .querySelectorAll(".bg-white.rounded-lg.shadow.overflow-x-auto")
+        .forEach((container) => {
+          container.classList.add("table-container");
         });
 
-        // Add pull-to-refresh functionality for mobile
-        let touchStartY = 0;
-        let touchEndY = 0;
+      // Add pull-to-refresh functionality for mobile
+      let touchStartY = 0;
+      let touchEndY = 0;
 
-        mainContent.addEventListener('touchstart', e => {
-            touchStartY = e.touches[0].clientY;
-        }, { passive: true });
+      mainContent.addEventListener(
+        "touchstart",
+        (e) => {
+          touchStartY = e.touches[0].clientY;
+        },
+        { passive: true },
+      );
 
-        mainContent.addEventListener('touchmove', e => {
-            touchEndY = e.touches[0].clientY;
-        }, { passive: true });
+      mainContent.addEventListener(
+        "touchmove",
+        (e) => {
+          touchEndY = e.touches[0].clientY;
+        },
+        { passive: true },
+      );
 
-        mainContent.addEventListener('touchend', () => {
-            const pullDistance = touchEndY - touchStartY;
-            if (pullDistance > 100 && window.scrollY === 0) {
-                showToast('Refreshing data...', 'success', 1000);
-                initialize();
-            }
-        }, { passive: true });
-
-        // Add offline detection
-        window.addEventListener('online', () => {
-            showToast('Back online! Refreshing data...', 'success');
+      mainContent.addEventListener(
+        "touchend",
+        () => {
+          const pullDistance = touchEndY - touchStartY;
+          if (pullDistance > 100 && window.scrollY === 0) {
+            showToast("Refreshing data...", "success", 1000);
             initialize();
-        });
+          }
+        },
+        { passive: true },
+      );
 
-        window.addEventListener('offline', () => {
-            showError('You are offline. Some features may be unavailable.');
-        });
-
-        // Update initialization
-        async function initialize() {
-            showLoading();
-            try {
-                await checkAuth();
-                await Promise.all([
-                    fetchOverview(),
-                    fetchUsers(),
-                    fetchApprovals()
-                ]);
-            } catch (error) {
-                debugLog('Initialization error:', error);
-                showError('Failed to initialize dashboard');
-            } finally {
-                hideLoading();
-            }
-        }
-
-        // Start initialization
+      // Add offline detection
+      window.addEventListener("online", () => {
+        showToast("Back online! Refreshing data...", "success");
         initialize();
+      });
 
-        // Refresh data every 30 seconds
-        setInterval(() => {
-            if (document.visibilityState === 'visible') {
-                fetchOverview();
-                fetchUsers();
-                fetchApprovals();
-            }
-        }, 30000);
+      window.addEventListener("offline", () => {
+        showError("You are offline. Some features may be unavailable.");
+      });
 
-        // Update the viewUserTasks function to use fetchWithAuth
-        async function viewUserTasks(userId) {
-            showLoading();
-            try {
-                const response = await fetchWithAuth(`/onboarding/tasks/${userId}`);
-                if (!response) {
-                    showError('Authentication failed. Please log in again.');
-                    return;
-                }
-                
-                const data = await response.json();
-                
-                // Create the tasks content
-                let tasksHtml = `
+      // Update initialization
+      async function initialize() {
+        showLoading();
+        try {
+          await checkAuth();
+          await Promise.all([fetchOverview(), fetchUsers(), fetchApprovals()]);
+        } catch (error) {
+          debugLog("Initialization error:", error);
+          showError("Failed to initialize dashboard");
+        } finally {
+          hideLoading();
+        }
+      }
+
+      // Start initialization
+      initialize();
+
+      // Refresh data every 30 seconds
+      setInterval(() => {
+        if (document.visibilityState === "visible") {
+          fetchOverview();
+          fetchUsers();
+          fetchApprovals();
+        }
+      }, 30000);
+
+      // Update the viewUserTasks function to use fetchWithAuth
+      async function viewUserTasks(userId) {
+        showLoading();
+        try {
+          const response = await fetchWithAuth(`/onboarding/tasks/${userId}`);
+          if (!response) {
+            showError("Authentication failed. Please log in again.");
+            return;
+          }
+
+          const data = await response.json();
+
+          // Create the tasks content
+          let tasksHtml = `
                     <div class="mb-4">
-                        <h3 class="text-lg font-semibold mb-2">${data.user?.name || 'User'}'s Tasks</h3>
-                        <p class="text-sm text-gray-600 mb-4">${data.user?.function || 'N/A'} - ${data.user?.subFunction || 'N/A'}</p>
+                        <h3 class="text-lg font-semibold mb-2">${data.user?.name || "User"}'s Tasks</h3>
+                        <p class="text-sm text-gray-600 mb-4">${data.user?.function || "N/A"} - ${data.user?.subFunction || "N/A"}</p>
                     </div>
                 `;
-                
-                if (!data.weeks || data.weeks.length === 0) {
-                    tasksHtml += `
+
+          if (!data.weeks || data.weeks.length === 0) {
+            tasksHtml += `
                         <div class="text-center py-4 text-gray-500">
                             No tasks found for this user.
                         </div>
                     `;
-                } else {
-                    // Add weeks and tasks
-                    data.weeks.forEach(week => {
-                        tasksHtml += `
+          } else {
+            // Add weeks and tasks
+            data.weeks.forEach((week) => {
+              tasksHtml += `
                             <div class="mb-6">
                                 <h4 class="text-md font-semibold mb-2">Week ${week.weekNumber}</h4>
                         `;
-                        
-                        week.days.forEach(day => {
-                            tasksHtml += `
+
+              week.days.forEach((day) => {
+                tasksHtml += `
                                 <div class="mb-4">
                                     <h5 class="text-sm font-medium mb-2">Day ${day.dayNumber}</h5>
                                     <div class="space-y-2">
                             `;
-                            
-                            // Add tasks
-                            (day.tasks || []).forEach(task => {
-                                const statusClass = task.completed ? 'bg-green-100 text-green-800' : 
-                                                  task.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                                                  'bg-gray-100 text-gray-800';
-                                
-                                tasksHtml += `
+
+                // Add tasks
+                (day.tasks || []).forEach((task) => {
+                  const statusClass = task.completed
+                    ? "bg-green-100 text-green-800"
+                    : task.status === "pending"
+                      ? "bg-yellow-100 text-yellow-800"
+                      : "bg-gray-100 text-gray-800";
+
+                  tasksHtml += `
                                     <div class="p-2 rounded ${statusClass}">
                                         <div class="flex items-center justify-between">
-                                            <span class="text-sm">${task.title || 'Untitled Task'}</span>
+                                            <span class="text-sm">${task.title || "Untitled Task"}</span>
                                             <span class="text-xs px-2 py-1 rounded-full ${statusClass}">
-                                                ${(task.status || 'pending').charAt(0).toUpperCase() + (task.status || 'pending').slice(1)}
+                                                ${(task.status || "pending").charAt(0).toUpperCase() + (task.status || "pending").slice(1)}
                                             </span>
                                         </div>
                                     </div>
                                 `;
-                            });
-                            
-                            // Add checklist items
-                            if (day.checklistItems && day.checklistItems.length > 0) {
-                                tasksHtml += `
+                });
+
+                // Add checklist items
+                if (day.checklistItems && day.checklistItems.length > 0) {
+                  tasksHtml += `
                                     <div class="mt-2">
                                         <h6 class="text-xs font-medium mb-1">Checklist Items:</h6>
                                         <div class="space-y-1">
                                 `;
-                                
-                                day.checklistItems.forEach(item => {
-                                    const statusClass = item.completed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
-                                    tasksHtml += `
+
+                  day.checklistItems.forEach((item) => {
+                    const statusClass = item.completed
+                      ? "bg-green-100 text-green-800"
+                      : "bg-gray-100 text-gray-800";
+                    tasksHtml += `
                                         <div class="p-2 rounded ${statusClass}">
                                             <div class="flex items-center justify-between">
-                                                <span class="text-sm">${item.title || 'Untitled Item'}</span>
+                                                <span class="text-sm">${item.title || "Untitled Item"}</span>
                                                 <span class="text-xs px-2 py-1 rounded-full ${statusClass}">
-                                                    ${item.completed ? 'Completed' : 'Pending'}
+                                                    ${item.completed ? "Completed" : "Pending"}
                                                 </span>
                                             </div>
                                         </div>
                                     `;
-                                });
-                                
-                                tasksHtml += `
+                  });
+
+                  tasksHtml += `
                                         </div>
                                     </div>
                                 `;
-                            }
-                            
-                            tasksHtml += `
+                }
+
+                tasksHtml += `
                                     </div>
                                 </div>
                             `;
-                        });
-                        
-                        tasksHtml += `
+              });
+
+              tasksHtml += `
                             </div>
                         `;
-                    });
-                }
-                
-                // Update modal content
-                const modalContent = document.getElementById('viewTasksContent');
-                if (modalContent) {
-                    modalContent.innerHTML = tasksHtml;
-                } else {
-                    // Create modal content if it doesn't exist
-                    const modal = document.getElementById('viewTasksModal');
-                    const contentDiv = document.createElement('div');
-                    contentDiv.id = 'viewTasksContent';
-                    contentDiv.className = 'mt-2 px-7 py-3 max-h-96 overflow-y-auto';
-                    contentDiv.innerHTML = tasksHtml;
-                    
-                    // Insert before the buttons
-                    const buttonsDiv = modal.querySelector('.items-center');
-                    modal.insertBefore(contentDiv, buttonsDiv);
-                }
-                
-                document.getElementById('viewTasksModal').classList.remove('hidden');
-                showToast('Tasks loaded successfully', 'success');
-            } catch (error) {
-                debugLog('Error viewing tasks:', error);
-                showError('Failed to load tasks. Please try again.');
-            } finally {
-                hideLoading();
-            }
-        }
+            });
+          }
 
-        // Update the viewTasks function in the approval handling
-        function viewTasks(userId) {
-            viewUserTasks(userId);
+          // Update modal content
+          const modalContent = document.getElementById("viewTasksContent");
+          if (modalContent) {
+            modalContent.innerHTML = tasksHtml;
+          } else {
+            // Create modal content if it doesn't exist
+            const modal = document.getElementById("viewTasksModal");
+            const contentDiv = document.createElement("div");
+            contentDiv.id = "viewTasksContent";
+            contentDiv.className = "mt-2 px-7 py-3 max-h-96 overflow-y-auto";
+            contentDiv.innerHTML = tasksHtml;
+
+            // Insert before the buttons
+            const buttonsDiv = modal.querySelector(".items-center");
+            modal.insertBefore(contentDiv, buttonsDiv);
+          }
+
+          document.getElementById("viewTasksModal").classList.remove("hidden");
+          showToast("Tasks loaded successfully", "success");
+        } catch (error) {
+          debugLog("Error viewing tasks:", error);
+          showError("Failed to load tasks. Please try again.");
+        } finally {
+          hideLoading();
         }
+      }
+
+      // Update the viewTasks function in the approval handling
+      function viewTasks(userId) {
+        viewUserTasks(userId);
+      }
     </script>
-</body>
-</html> 
+  </body>
+</html>

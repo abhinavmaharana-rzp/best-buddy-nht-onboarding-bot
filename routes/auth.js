@@ -1,10 +1,10 @@
-const express = require('express');
-const jwt = require('jsonwebtoken');
+const express = require("express");
+const jwt = require("jsonwebtoken");
 const router = express.Router();
 
 // Admin credentials
-const ADMIN_EMAIL = 'abhinav.maharana@razorpay.com';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123'; // Change this in production
+const ADMIN_EMAIL = "abhinav.maharana@razorpay.com";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123"; // Change this in production
 
 /**
  * @swagger
@@ -22,19 +22,19 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123'; // Change this 
  *               - email
  *               - password
  */
-router.post('/login', (req, res) => {
+router.post("/login", (req, res) => {
   const { email, password } = req.body;
 
   if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
     const token = jwt.sign(
-      { email, role: 'admin' },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
+      { email, role: "admin" },
+      process.env.JWT_SECRET || "your-secret-key",
+      { expiresIn: "24h" },
     );
 
     res.json({ token });
   } else {
-    res.status(401).json({ message: 'Invalid credentials' });
+    res.status(401).json({ message: "Invalid credentials" });
   }
 });
 
@@ -47,19 +47,22 @@ router.post('/login', (req, res) => {
  *     security:
  *       - bearerAuth: []
  */
-router.get('/verify', (req, res) => {
-  const token = req.headers.authorization?.split(' ')[1];
+router.get("/verify", (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
 
   if (!token) {
-    return res.status(401).json({ message: 'No token provided' });
+    return res.status(401).json({ message: "No token provided" });
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "your-secret-key",
+    );
     res.json({ valid: true, user: decoded });
   } catch (error) {
-    res.status(401).json({ message: 'Invalid token' });
+    res.status(401).json({ message: "Invalid token" });
   }
 });
 
-module.exports = router; 
+module.exports = router;
