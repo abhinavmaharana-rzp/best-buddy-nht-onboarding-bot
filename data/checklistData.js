@@ -15,4 +15,8 @@ module.exports = [
     text: { type: "plain_text", text: "Crash course in fintech" },
     value: "fintech",
   },
+  {
+    text: { type: "plain_text", text: "Complete Elearning Modules: Rookie, Maverick, Grandmaster, POSH, ISMS on LearnX" },
+    value: "elearning",
+  }
 ];
