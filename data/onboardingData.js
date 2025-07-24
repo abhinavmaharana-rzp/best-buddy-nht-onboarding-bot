@@ -193,6 +193,13 @@ module.exports = [
             mode: "Video + In-Person",
           },
           {
+            title:
+              "Tools and Process (Admin Dashboard, Merchant Dashboard, Freshdesk, Coralogix, Querybook, etc.)",
+            owner: "Abhinav Maharana",
+            link: "https://learnx.disprz.com/#!/module/1399",
+            mode: "Video + In-Person",
+          },
+          {
             title: "Task for the Day",
             owner: "Self / L&D",
             link: "",
