@@ -193,13 +193,6 @@ module.exports = [
             mode: "Video + In-Person",
           },
           {
-            title:
-              "Tools and Process (Freshdesk, Coralogix, Querybook, etc.)",
-            owner: "Abhinav Maharana",
-            link: "https://learnx.disprz.com/#!/module/1399",
-            mode: "Video + In-Person",
-          },
-          {
             title: "Task for the Day",
             owner: "Self / L&D",
             link: "",
@@ -301,7 +294,7 @@ module.exports = [
           {
             title: "Freshdesk and Jira",
             owner: "Abhinav Maharana",
-            link: "",
+            link: "https://learnx.disprz.com/#!/module/1399",
             mode: "Video + In-Person",
           },
           {
@@ -326,7 +319,7 @@ module.exports = [
           {
             title: "Coralogix and Querybook",
             owner: "Abhinav Maharana",
-            link: "",
+            link: "https://learnx.disprz.com/#!/module/1399",
             mode: "Video + In-Person",
           },
           {
