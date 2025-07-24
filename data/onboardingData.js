@@ -194,7 +194,7 @@ module.exports = [
           },
           {
             title:
-              "Tools and Process (Admin Dashboard, Merchant Dashboard, Freshdesk, Coralogix, Querybook, etc.)",
+              "Tools and Process (Freshdesk, Coralogix, Querybook, etc.)",
             owner: "Abhinav Maharana",
             link: "https://learnx.disprz.com/#!/module/1399",
             mode: "Video + In-Person",
@@ -276,7 +276,7 @@ module.exports = [
           {
             title: "Merchant and Admin Dashboard",
             owner: "Abhinav Maharana",
-            link: "",
+            link: "https://learnx.disprz.com/#!/module/1399",
             mode: "Video + In-Person",
           },
           {
