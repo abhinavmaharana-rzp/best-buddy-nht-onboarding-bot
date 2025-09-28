@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proctored Assessment - Razorpay Onboarding</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .assessment-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .assessment-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .assessment-header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .assessment-content {
+            padding: 40px;
+        }
+        
+        .proctoring-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .proctoring-status.recording::before {
+            content: '●';
+            color: #ef4444;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .warning-banner {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            color: #92400e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .instructions-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .instructions-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .instructions-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .instructions-list li::before {
+            content: '⚠️';
+            font-size: 18px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .assessment-iframe {
+            width: 100%;
+            height: 600px;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .timer {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: #1f2937;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            z-index: 1000;
+        }
+        
+        .timer.warning {
+            background: #dc2626;
+            animation: pulse 1s infinite;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f4f6;
+            border-top: 5px solid #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .violation-warning {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #fef2f2;
+            border: 2px solid #fca5a5;
+            color: #991b1b;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            z-index: 10000;
+            max-width: 500px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="text-center text-white">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <p>Initializing proctored assessment...</p>
+        </div>
+    </div>
+
+    <!-- Proctoring Status -->
+    <div id="proctoringStatus" class="proctoring-status hidden">
+        <span>🔴</span>
+        <span>Recording in Progress</span>
+    </div>
+
+    <!-- Timer -->
+    <div id="timer" class="timer hidden">
+        <span id="timeRemaining">00:00</span>
+    </div>
+
+    <!-- Assessment Container -->
+    <div class="assessment-container">
+        <div class="assessment-card">
+            <!-- Assessment Header -->
+            <div class="assessment-header">
+                <h1 id="assessmentTitle" class="text-3xl font-bold mb-2">Proctored Assessment</h1>
+                <p id="assessmentDescription" class="text-lg opacity-90">Please complete this assessment under proctored conditions</p>
+            </div>
+
+            <!-- Assessment Content -->
+            <div class="assessment-content">
+                <!-- Pre-Assessment Instructions -->
+                <div id="preAssessment" class="text-center">
+                    <div class="warning-banner">
+                        <h3 class="text-lg font-semibold mb-2">⚠️ Important Instructions</h3>
+                        <p class="text-sm">This is a proctored assessment. You will be monitored throughout the session.</p>
+                    </div>
+
+                    <div class="mb-8">
+                        <h3 class="text-xl font-semibold mb-4">Assessment Rules</h3>
+                        <ul class="instructions-list text-left max-w-2xl mx-auto">
+                            <li>Do not switch tabs or open new windows during the assessment</li>
+                            <li>Do not use copy-paste functionality</li>
+                            <li>Do not right-click on the page</li>
+                            <li>Ensure your screen sharing is working properly</li>
+                            <li>You will be monitored throughout the assessment</li>
+                            <li>Any violations will result in warnings or termination</li>
+                            <li>You have <span id="timeLimit">30</span> minutes to complete this assessment</li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-8">
+                        <h3 class="text-lg font-semibold mb-2">Assessment Details</h3>
+                        <div class="bg-gray-50 p-4 rounded-lg max-w-md mx-auto">
+                            <p><strong>Topic:</strong> <span id="topicName">-</span></p>
+                            <p><strong>Passing Score:</strong> <span id="passingScore">80%</span></p>
+                            <p><strong>Time Limit:</strong> <span id="timeLimitDisplay">30 minutes</span></p>
+                            <p><strong>Max Attempts:</strong> <span id="maxAttempts">3</span></p>
+                        </div>
+                    </div>
+
+                    <button id="startAssessmentBtn" class="btn-primary">
+                        Start Proctored Assessment
+                    </button>
+                </div>
+
+                <!-- Assessment Iframe -->
+                <div id="assessmentContent" class="hidden">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-semibold mb-2">Complete the assessment below:</h3>
+                        <p class="text-sm text-gray-600">Your screen is being recorded for proctoring purposes.</p>
+                    </div>
+                    <iframe id="assessmentIframe" class="assessment-iframe" src=""></iframe>
+                </div>
+
+                <!-- Post-Assessment -->
+                <div id="postAssessment" class="hidden text-center">
+                    <div id="successMessage" class="hidden">
+                        <div class="text-green-600 text-6xl mb-4">✅</div>
+                        <h3 class="text-2xl font-bold text-green-800 mb-2">Assessment Completed Successfully!</h3>
+                        <p class="text-green-600 mb-4">Congratulations! You have passed the assessment with a score of <span id="finalScore">-</span>%</p>
+                        <p class="text-gray-600">Your results have been submitted for review.</p>
+                    </div>
+
+                    <div id="failureMessage" class="hidden">
+                        <div class="text-red-600 text-6xl mb-4">❌</div>
+                        <h3 class="text-2xl font-bold text-red-800 mb-2">Assessment Not Passed</h3>
+                        <p class="text-red-600 mb-4">Unfortunately, you did not achieve the required passing score of <span id="requiredScore">80</span>%</p>
+                        <p class="text-gray-600 mb-4">Your score: <span id="userScore">-</span>%</p>
+                        <p class="text-gray-600">Please prepare well and try again. You can retake this assessment after reviewing the material.</p>
+                    </div>
+
+                    <div id="terminatedMessage" class="hidden">
+                        <div class="text-red-600 text-6xl mb-4">🚫</div>
+                        <h3 class="text-2xl font-bold text-red-800 mb-2">Assessment Terminated</h3>
+                        <p class="text-red-600 mb-4">Your assessment has been terminated due to multiple violations.</p>
+                        <p class="text-gray-600">Please contact your administrator for further assistance.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Violation Warning Modal -->
+    <div id="violationWarning" class="violation-warning hidden">
+        <div class="text-4xl mb-4">⚠️</div>
+        <h3 class="text-xl font-bold mb-2">Violation Detected</h3>
+        <p id="violationMessage" class="mb-4">A violation has been detected during your assessment.</p>
+        <p class="text-sm text-gray-600">Please review the rules and continue with the assessment.</p>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/proctoring.js"></script>
+    <script>
+        class AssessmentManager {
+            constructor() {
+                this.proctoringSystem = null;
+                this.assessmentConfig = null;
+                this.timeRemaining = 0;
+                this.timerInterval = null;
+                this.assessmentId = null;
+                this.sessionId = null;
+                
+                this.init();
+            }
+
+            async init() {
+                try {
+                    // Get assessment parameters from URL
+                    const urlParams = new URLSearchParams(window.location.search);
+                    this.assessmentId = urlParams.get('assessmentId');
+                    this.sessionId = urlParams.get('sessionId');
+                    
+                    if (!this.assessmentId) {
+                        throw new Error('Assessment ID is required');
+                    }
+
+                    // Load assessment configuration
+                    await this.loadAssessmentConfig();
+                    
+                    // Initialize proctoring system
+                    this.proctoringSystem = new ProctoringSystem(this.assessmentConfig);
+                    
+                    // Setup event listeners
+                    this.setupEventListeners();
+                    
+                    // Hide loading overlay
+                    this.hideLoading();
+                    
+                } catch (error) {
+                    console.error('Failed to initialize assessment:', error);
+                    this.showError('Failed to initialize assessment. Please try again.');
+                }
+            }
+
+            async loadAssessmentConfig() {
+                try {
+                    const response = await fetch(`/api/assessment/config/${this.assessmentId}`);
+                    if (!response.ok) {
+                        throw new Error('Failed to load assessment configuration');
+                    }
+                    
+                    this.assessmentConfig = await response.json();
+                    this.updateAssessmentInfo();
+                    
+                } catch (error) {
+                    console.error('Error loading assessment config:', error);
+                    throw error;
+                }
+            }
+
+            updateAssessmentInfo() {
+                const config = this.assessmentConfig;
+                
+                document.getElementById('assessmentTitle').textContent = config.taskTitle;
+                document.getElementById('assessmentDescription').textContent = config.description;
+                document.getElementById('topicName').textContent = config.taskTitle;
+                document.getElementById('passingScore').textContent = config.passingScore + '%';
+                document.getElementById('timeLimit').textContent = config.timeLimit;
+                document.getElementById('timeLimitDisplay').textContent = config.timeLimit + ' minutes';
+                document.getElementById('maxAttempts').textContent = config.maxAttempts;
+                
+                this.timeRemaining = config.timeLimit * 60; // Convert to seconds
+            }
+
+            setupEventListeners() {
+                document.getElementById('startAssessmentBtn').addEventListener('click', () => {
+                    this.startAssessment();
+                });
+            }
+
+            async startAssessment() {
+                try {
+                    // Start proctoring
+                    await this.proctoringSystem.startAssessment();
+                    
+                    // Show proctoring status
+                    document.getElementById('proctoringStatus').classList.remove('hidden');
+                    document.getElementById('proctoringStatus').classList.add('recording');
+                    
+                    // Start timer
+                    this.startTimer();
+                    
+                    // Load assessment iframe
+                    this.loadAssessmentIframe();
+                    
+                    // Hide pre-assessment, show assessment content
+                    document.getElementById('preAssessment').classList.add('hidden');
+                    document.getElementById('assessmentContent').classList.remove('hidden');
+                    
+                } catch (error) {
+                    console.error('Failed to start assessment:', error);
+                    this.showError('Failed to start assessment. Please try again.');
+                }
+            }
+
+            loadAssessmentIframe() {
+                const iframe = document.getElementById('assessmentIframe');
+                iframe.src = this.assessmentConfig.googleFormUrl;
+                
+                // Listen for iframe load
+                iframe.onload = () => {
+                    console.log('Assessment iframe loaded');
+                };
+            }
+
+            startTimer() {
+                this.timerInterval = setInterval(() => {
+                    this.timeRemaining--;
+                    this.updateTimerDisplay();
+                    
+                    if (this.timeRemaining <= 0) {
+                        this.timeUp();
+                    }
+                }, 1000);
+                
+                document.getElementById('timer').classList.remove('hidden');
+                this.updateTimerDisplay();
+            }
+
+            updateTimerDisplay() {
+                const minutes = Math.floor(this.timeRemaining / 60);
+                const seconds = this.timeRemaining % 60;
+                const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                document.getElementById('timeRemaining').textContent = timeString;
+                
+                // Add warning class when time is running low
+                const timerElement = document.getElementById('timer');
+                if (this.timeRemaining <= 300) { // 5 minutes
+                    timerElement.classList.add('warning');
+                }
+            }
+
+            timeUp() {
+                clearInterval(this.timerInterval);
+                this.completeAssessment(0, false, 'Time limit exceeded');
+            }
+
+            async completeAssessment(score, passed, reason = '') {
+                try {
+                    // Stop proctoring
+                    await this.proctoringSystem.completeAssessment(score, passed);
+                    
+                    // Stop timer
+                    if (this.timerInterval) {
+                        clearInterval(this.timerInterval);
+                    }
+                    
+                    // Hide assessment content, show results
+                    document.getElementById('assessmentContent').classList.add('hidden');
+                    document.getElementById('postAssessment').classList.remove('hidden');
+                    
+                    if (passed) {
+                        document.getElementById('successMessage').classList.remove('hidden');
+                        document.getElementById('finalScore').textContent = score;
+                    } else {
+                        document.getElementById('failureMessage').classList.remove('hidden');
+                        document.getElementById('userScore').textContent = score;
+                        document.getElementById('requiredScore').textContent = this.assessmentConfig.passingScore;
+                    }
+                    
+                    // Send completion to server
+                    await this.sendAssessmentCompletion(score, passed, reason);
+                    
+                } catch (error) {
+                    console.error('Failed to complete assessment:', error);
+                    this.showError('Failed to complete assessment');
+                }
+            }
+
+            async sendAssessmentCompletion(score, passed, reason) {
+                try {
+                    const response = await fetch('/api/assessment/complete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            assessmentId: this.assessmentId,
+                            sessionId: this.sessionId,
+                            score,
+                            passed,
+                            reason,
+                            timeSpent: (this.assessmentConfig.timeLimit * 60) - this.timeRemaining
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to send completion data');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error sending completion:', error);
+                }
+            }
+
+            showError(message) {
+                alert('Error: ' + message);
+            }
+
+            hideLoading() {
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            }
+        }
+
+        // Initialize assessment when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new AssessmentManager();
+        });
+    </script>
+</body>
+</html>

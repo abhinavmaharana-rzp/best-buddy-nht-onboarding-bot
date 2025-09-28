@@ -681,6 +681,95 @@ module.exports = (boltApp) => {
     });
   });
 
+  // Helper function to start proctored assessment
+  const startProctoredAssessment = async (client, userId, task, weekIndex, dayIndex, taskIndex) => {
+    try {
+      // Start assessment via API
+      const response = await fetch(`${process.env.BASE_URL || 'http://localhost:3000'}/api/assessment/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          taskTitle: task.title,
+          weekIndex,
+          dayIndex,
+          taskIndex,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to start assessment');
+      }
+
+      const assessmentData = await response.json();
+      const assessmentUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/assessment.html?assessmentId=${assessmentData.assessmentId}&sessionId=${assessmentData.sessionId}`;
+
+      // Send assessment message to user
+      await client.chat.postMessage({
+        token: process.env.SLACK_BOT_TOKEN,
+        channel: userId,
+        text: `📝 Proctored Assessment Required: ${task.title}`,
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `📝 *Proctored Assessment Required*\n\nYou need to complete a proctored assessment for: *${task.title}*`,
+            },
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `*Assessment Details:*\n• Passing Score: ${assessmentData.config.passingScore}%\n• Time Limit: ${assessmentData.config.timeLimit} minutes\n• Max Attempts: ${assessmentData.config.maxAttempts}\n\n*Important:* This assessment will be monitored for academic integrity. Your screen will be recorded during the assessment.`,
+            },
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `*Instructions:*\n• Do not switch tabs or open new windows\n• Do not use copy-paste functionality\n• Do not right-click on the page\n• Ensure your screen sharing is working properly\n• Any violations will result in warnings or termination`,
+            },
+          },
+          {
+            type: "actions",
+            elements: [
+              {
+                type: "button",
+                text: {
+                  type: "plain_text",
+                  text: "Start Proctored Assessment",
+                  emoji: true,
+                },
+                url: assessmentUrl,
+                style: "primary",
+              },
+            ],
+          },
+          {
+            type: "context",
+            elements: [
+              {
+                type: "mrkdwn",
+                text: `⚠️ *Warning:* This assessment is proctored and monitored. Violations may result in assessment termination.`,
+              },
+            ],
+          },
+        ],
+      });
+
+    } catch (error) {
+      console.error('Error starting proctored assessment:', error);
+      await client.chat.postMessage({
+        token: process.env.SLACK_BOT_TOKEN,
+        channel: userId,
+        text: `❌ Failed to start proctored assessment for "${task.title}". Please try again later.`,
+      });
+    }
+  };
+
   // Handle mark complete button click
   boltApp.action(/mark_complete_\d+_\d+_\d+/, async ({ ack, body, client }) => {
     await ack();
@@ -699,7 +788,17 @@ module.exports = (boltApp) => {
         throw new Error("Invalid task data");
       }
 
-      // Create approval request
+      // Check if this task requires a proctored assessment
+      const assessmentData = require("../data/assessmentData");
+      const requiresAssessment = assessmentData.assessments[task.title];
+      
+      if (requiresAssessment) {
+        // Start proctored assessment
+        await startProctoredAssessment(client, userId, task, weekIndex, dayIndex, taskIndex);
+        return;
+      }
+
+      // Create approval request for non-assessment tasks
       const existing = await TaskApproval.findOne({
         userId,
         weekIndex,

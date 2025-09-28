@@ -11,6 +11,7 @@ const dashboardRoutes = require("./routes/dashboard");
 const swaggerUi = require("swagger-ui-express");
 const swaggerSpecs = require("./swagger");
 const authRoutes = require("./routes/auth");
+const assessmentRoutes = require("./routes/assessment");
 
 // Import the dashboard router creator
 const createDashboardRouter = require("./routes/dashboard");
@@ -51,6 +52,7 @@ expressApp.use("/onboarding", onboardingRoutes(app));
 expressApp.use("/checklist", checklistRoutes(app));
 expressApp.use("/user-lookup", userLookupRoutes);
 expressApp.use("/dashboard", createDashboardRouter(app));
+expressApp.use("/api/assessment", assessmentRoutes);
 
 // Serve login page at root
 expressApp.get("/", (req, res) => {
