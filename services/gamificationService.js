@@ -503,6 +503,12 @@ class GamificationService {
   getNextLevelPoints(currentPoints) {
     const levels = [0, 100, 250, 500, 750, 1000];
     const currentLevel = levels.findIndex(level => currentPoints < level);
+    
+    // If at max level, return 0
+    if (currentLevel === -1) {
+      return 0;
+    }
+    
     return levels[currentLevel] - currentPoints;
   }
 }

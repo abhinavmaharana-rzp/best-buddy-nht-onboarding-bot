@@ -77,7 +77,8 @@ const assessmentSchema = new mongoose.Schema({
   },
   createdBy: {
     type: String,
-    required: true,
+    required: false,
+    default: "system",
   },
 }, {
   timestamps: true,

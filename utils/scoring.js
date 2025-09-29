@@ -184,12 +184,12 @@ function generateFeedback(score, passed, adjustments) {
   }
 
   // Add specific feedback based on performance
-  if (adjustments.violations > 0) {
+  if (adjustments.violations < 0) {
     feedback += "Please note that violations were detected during your assessment. ";
   }
 
-  if (adjustments.attempts > 1) {
-    feedback += `This was attempt ${adjustments.attempts + 1}. `;
+  if (adjustments.attempts < 0) {
+    feedback += `This was not your first attempt. `;
   }
 
   if (adjustments.timeSpent > 0) {
