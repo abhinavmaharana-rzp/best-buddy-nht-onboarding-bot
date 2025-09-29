@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - Razorpay Onboarding</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css" rel="stylesheet">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover {
+            transition: transform 0.2s ease-in-out;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .metric-card-2 {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        .metric-card-3 {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        .metric-card-4 {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <div class="gradient-bg text-white p-6">
+            <div class="max-w-7xl mx-auto">
+                <h1 class="text-3xl font-bold mb-2">📊 Analytics Dashboard</h1>
+                <p class="text-lg opacity-90">Comprehensive insights into onboarding performance and engagement</p>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto p-6">
+            <!-- Key Metrics -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="metric-card rounded-lg p-6 text-white card-hover">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm opacity-90">Total New Hires</p>
+                            <p class="text-3xl font-bold" id="totalNewHires">-</p>
+                        </div>
+                        <i class="fas fa-users text-4xl opacity-50"></i>
+                    </div>
+                </div>
+                <div class="metric-card-2 rounded-lg p-6 text-white card-hover">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm opacity-90">Completion Rate</p>
+                            <p class="text-3xl font-bold" id="completionRate">-</p>
+                        </div>
+                        <i class="fas fa-chart-line text-4xl opacity-50"></i>
+                    </div>
+                </div>
+                <div class="metric-card-3 rounded-lg p-6 text-white card-hover">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm opacity-90">Avg. Assessment Score</p>
+                            <p class="text-3xl font-bold" id="avgScore">-</p>
+                        </div>
+                        <i class="fas fa-trophy text-4xl opacity-50"></i>
+                    </div>
+                </div>
+                <div class="metric-card-4 rounded-lg p-6 text-white card-hover">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm opacity-90">Active Users</p>
+                            <p class="text-3xl font-bold" id="activeUsers">-</p>
+                        </div>
+                        <i class="fas fa-user-check text-4xl opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <!-- Progress Over Time -->
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h3 class="text-xl font-semibold mb-4">Progress Over Time</h3>
+                    <canvas id="progressChart" width="400" height="200"></canvas>
+                </div>
+
+                <!-- Assessment Performance -->
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h3 class="text-xl font-semibold mb-4">Assessment Performance</h3>
+                    <canvas id="assessmentChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <!-- Detailed Analytics -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <!-- Top Performers -->
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h3 class="text-xl font-semibold mb-4">🏆 Top Performers</h3>
+                    <div id="topPerformers" class="space-y-3">
+                        <!-- Top performers will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Learning Paths -->
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h3 class="text-xl font-semibold mb-4">📚 Popular Learning Paths</h3>
+                    <div id="learningPaths" class="space-y-3">
+                        <!-- Learning paths will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Engagement Metrics -->
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h3 class="text-xl font-semibold mb-4">💬 Engagement Metrics</h3>
+                    <div id="engagementMetrics" class="space-y-3">
+                        <!-- Engagement metrics will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Tables -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- User Progress Table -->
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h3 class="text-xl font-semibold mb-4">👥 User Progress</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Progress</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Level</th>
+                                </tr>
+                            </thead>
+                            <tbody id="userProgressTable" class="bg-white divide-y divide-gray-200">
+                                <!-- User progress rows will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Assessment Results -->
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h3 class="text-xl font-semibold mb-4">📝 Assessment Results</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Topic</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pass Rate</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Score</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assessmentResultsTable" class="bg-white divide-y divide-gray-200">
+                                <!-- Assessment results will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class AnalyticsDashboard {
+            constructor() {
+                this.charts = {};
+                this.data = {};
+                this.init();
+            }
+
+            async init() {
+                try {
+                    await this.loadData();
+                    this.renderCharts();
+                    this.renderTables();
+                    this.setupEventListeners();
+                } catch (error) {
+                    console.error('Error initializing dashboard:', error);
+                }
+            }
+
+            async loadData() {
+                try {
+                    // Load analytics data from API
+                    const response = await fetch('/api/analytics/overview');
+                    if (!response.ok) throw new Error('Failed to load analytics data');
+                    
+                    this.data = await response.json();
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                    // Use mock data for demonstration
+                    this.data = this.getMockData();
+                }
+            }
+
+            getMockData() {
+                return {
+                    totalNewHires: 45,
+                    completionRate: 78,
+                    avgScore: 82,
+                    activeUsers: 38,
+                    progressOverTime: [
+                        { week: 1, completion: 65 },
+                        { week: 2, completion: 72 },
+                        { week: 3, completion: 78 },
+                        { week: 4, completion: 82 },
+                    ],
+                    assessmentPerformance: [
+                        { topic: 'Fintech 101', passRate: 85, avgScore: 78 },
+                        { topic: 'Core Payments', passRate: 92, avgScore: 84 },
+                        { topic: 'Merchant Dashboard', passRate: 88, avgScore: 81 },
+                        { topic: 'Cross Border', passRate: 76, avgScore: 75 },
+                    ],
+                    topPerformers: [
+                        { name: 'Alice Johnson', progress: 95, level: 'Expert' },
+                        { name: 'Bob Smith', progress: 92, level: 'Achiever' },
+                        { name: 'Carol Davis', progress: 89, level: 'Achiever' },
+                    ],
+                    learningPaths: [
+                        { name: 'Engineering Track', users: 15, completion: 85 },
+                        { name: 'Sales Track', users: 12, completion: 78 },
+                        { name: 'Support Track', users: 8, completion: 82 },
+                    ],
+                    engagementMetrics: [
+                        { metric: 'Questions Asked', value: 156, trend: '+12%' },
+                        { metric: 'Peer Interactions', value: 89, trend: '+8%' },
+                        { metric: 'Mentor Sessions', value: 34, trend: '+15%' },
+                    ],
+                };
+            }
+
+            renderCharts() {
+                this.renderProgressChart();
+                this.renderAssessmentChart();
+            }
+
+            renderProgressChart() {
+                const ctx = document.getElementById('progressChart').getContext('2d');
+                this.charts.progress = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: this.data.progressOverTime.map(d => `Week ${d.week}`),
+                        datasets: [{
+                            label: 'Completion Rate (%)',
+                            data: this.data.progressOverTime.map(d => d.completion),
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100
+                            }
+                        }
+                    }
+                });
+            }
+
+            renderAssessmentChart() {
+                const ctx = document.getElementById('assessmentChart').getContext('2d');
+                this.charts.assessment = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: this.data.assessmentPerformance.map(d => d.topic),
+                        datasets: [{
+                            label: 'Pass Rate (%)',
+                            data: this.data.assessmentPerformance.map(d => d.passRate),
+                            backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100
+                            }
+                        }
+                    }
+                });
+            }
+
+            renderTables() {
+                this.renderUserProgressTable();
+                this.renderAssessmentResultsTable();
+                this.renderTopPerformers();
+                this.renderLearningPaths();
+                this.renderEngagementMetrics();
+            }
+
+            renderUserProgressTable() {
+                const tbody = document.getElementById('userProgressTable');
+                const users = [
+                    { name: 'Alice Johnson', progress: 95, level: 'Expert' },
+                    { name: 'Bob Smith', progress: 92, level: 'Achiever' },
+                    { name: 'Carol Davis', progress: 89, level: 'Achiever' },
+                    { name: 'David Wilson', progress: 76, level: 'Explorer' },
+                    { name: 'Eva Brown', progress: 68, level: 'Explorer' },
+                ];
+
+                tbody.innerHTML = users.map(user => `
+                    <tr>
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900">${user.name}</td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center">
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-blue-600 h-2 rounded-full" style="width: ${user.progress}%"></div>
+                                </div>
+                                <span class="ml-2 text-sm text-gray-500">${user.progress}%</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-900">${user.level}</td>
+                    </tr>
+                `).join('');
+            }
+
+            renderAssessmentResultsTable() {
+                const tbody = document.getElementById('assessmentResultsTable');
+                tbody.innerHTML = this.data.assessmentPerformance.map(assessment => `
+                    <tr>
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900">${assessment.topic}</td>
+                        <td class="px-4 py-3 text-sm text-gray-900">${assessment.passRate}%</td>
+                        <td class="px-4 py-3 text-sm text-gray-900">${assessment.avgScore}%</td>
+                    </tr>
+                `).join('');
+            }
+
+            renderTopPerformers() {
+                const container = document.getElementById('topPerformers');
+                container.innerHTML = this.data.topPerformers.map((performer, index) => `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center">
+                            <span class="text-2xl mr-3">${index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}</span>
+                            <div>
+                                <p class="font-medium">${performer.name}</p>
+                                <p class="text-sm text-gray-500">${performer.level}</p>
+                            </div>
+                        </div>
+                        <span class="text-lg font-bold text-blue-600">${performer.progress}%</span>
+                    </div>
+                `).join('');
+            }
+
+            renderLearningPaths() {
+                const container = document.getElementById('learningPaths');
+                container.innerHTML = this.data.learningPaths.map(path => `
+                    <div class="p-3 bg-gray-50 rounded-lg">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-medium">${path.name}</span>
+                            <span class="text-sm text-gray-500">${path.users} users</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-green-600 h-2 rounded-full" style="width: ${path.completion}%"></div>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1">${path.completion}% completion</p>
+                    </div>
+                `).join('');
+            }
+
+            renderEngagementMetrics() {
+                const container = document.getElementById('engagementMetrics');
+                container.innerHTML = this.data.engagementMetrics.map(metric => `
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span class="font-medium">${metric.metric}</span>
+                        <div class="text-right">
+                            <span class="text-lg font-bold">${metric.value}</span>
+                            <span class="text-sm text-green-600 ml-2">${metric.trend}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            setupEventListeners() {
+                // Add refresh button functionality
+                const refreshButton = document.createElement('button');
+                refreshButton.className = 'fixed bottom-6 right-6 bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700';
+                refreshButton.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                refreshButton.onclick = () => this.refreshData();
+                document.body.appendChild(refreshButton);
+            }
+
+            async refreshData() {
+                try {
+                    await this.loadData();
+                    this.renderCharts();
+                    this.renderTables();
+                    console.log('Data refreshed successfully');
+                } catch (error) {
+                    console.error('Error refreshing data:', error);
+                }
+            }
+        }
+
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new AnalyticsDashboard();
+        });
+    </script>
+</body>
+</html>

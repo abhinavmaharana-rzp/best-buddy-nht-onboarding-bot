@@ -12,6 +12,12 @@ const swaggerUi = require("swagger-ui-express");
 const swaggerSpecs = require("./swagger");
 const authRoutes = require("./routes/auth");
 const assessmentRoutes = require("./routes/assessment");
+const analyticsRoutes = require("./routes/analytics");
+
+// Import services
+const SchedulerService = require("./services/schedulerService");
+const GamificationService = require("./services/gamificationService");
+const AIAssistantService = require("./services/aiAssistantService");
 
 // Import the dashboard router creator
 const createDashboardRouter = require("./routes/dashboard");
@@ -53,6 +59,7 @@ expressApp.use("/checklist", checklistRoutes(app));
 expressApp.use("/user-lookup", userLookupRoutes);
 expressApp.use("/dashboard", createDashboardRouter(app));
 expressApp.use("/api/assessment", assessmentRoutes);
+expressApp.use("/api/analytics", analyticsRoutes);
 
 // Serve login page at root
 expressApp.get("/", (req, res) => {
@@ -69,6 +76,11 @@ expressApp.get("/am-dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "am-dashboard.html"));
 });
 
+// Serve analytics dashboard at /analytics
+expressApp.get("/analytics", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "analytics-dashboard.html"));
+});
+
 // Swagger UI
 expressApp.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
@@ -77,6 +89,20 @@ expressApp.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
   try {
     // Start Bolt app
     await app.start();
+
+    // Initialize services
+    const schedulerService = new SchedulerService(app);
+    const gamificationService = new GamificationService(app);
+    const aiAssistantService = new AIAssistantService(app);
+
+    // Start scheduler service
+    schedulerService.start();
+
+    // Set up AI assistant slash command
+    app.command("/ask", async ({ ack, payload }) => {
+      await ack();
+      await aiAssistantService.handleSlashCommand(payload);
+    });
 
     // Start Express app
     expressApp.listen(process.env.PORT || 3000, () => {
@@ -90,6 +116,12 @@ expressApp.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
       console.log(
         `📊 Dashboard available at http://localhost:${process.env.PORT || 3000}`,
       );
+      console.log(
+        `📈 Analytics Dashboard available at http://localhost:${process.env.PORT || 3000}/analytics`,
+      );
+      console.log(`🤖 AI Assistant available via /ask command`);
+      console.log(`🎮 Gamification system active`);
+      console.log(`⏰ Scheduler service running`);
     });
   } catch (error) {
     console.error("Error starting app:", error);
