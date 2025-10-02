@@ -1,7 +1,21 @@
+/**
+ * Gamification Service Tests
+ * 
+ * Comprehensive test suite for the GamificationService class.
+ * Tests points awarding, badge management, level progression, and leaderboards.
+ * 
+ * @author Abhinav Maharana
+ * @version 1.0.0
+ */
+
 const GamificationService = require('../../services/gamificationService');
 const UserProgress = require('../../models/userProgress');
 
-// Mock Slack app
+/**
+ * Mock Slack App
+ * 
+ * Provides a mock Slack app instance for testing without actual Slack API calls.
+ */
 const mockSlackApp = {
   client: {
     chat: {

@@ -1,3 +1,14 @@
+/**
+ * Assessment Routes
+ * 
+ * This module handles all API endpoints related to proctored assessments including
+ * assessment creation, proctoring session management, scoring, and completion handling.
+ * It integrates with Google Forms and provides comprehensive proctoring capabilities.
+ * 
+ * @author Abhinav Maharana
+ * @version 1.0.0
+ */
+
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
@@ -12,7 +23,12 @@ const { simulateGoogleFormsScoring } = require("../utils/scoring");
 
 const router = express.Router();
 
-// Configure multer for file uploads
+/**
+ * File Upload Configuration
+ * 
+ * Configures multer for handling screen recording uploads during proctored assessments.
+ * Creates upload directory if it doesn't exist and validates file types.
+ */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(__dirname, "../uploads/recordings");
@@ -30,7 +46,7 @@ const storage = multer.diskStorage({
 const upload = multer({ 
   storage,
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB limit
+    fileSize: 100 * 1024 * 1024, // 100MB limit for video files
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype === "video/webm" || file.mimetype === "video/mp4") {
@@ -60,16 +76,23 @@ const upload = multer({
  *       404:
  *         description: Assessment not found
  */
+/**
+ * GET /api/assessment/config/:assessmentId
+ * 
+ * Retrieves assessment configuration for a specific assessment.
+ * Returns proctoring settings, time limits, and other configuration details.
+ */
 router.get("/config/:assessmentId", async (req, res) => {
   try {
     const { assessmentId } = req.params;
     
+    // Find the assessment in the database
     const assessment = await Assessment.findById(assessmentId);
     if (!assessment) {
       return res.status(404).json({ error: "Assessment not found" });
     }
 
-    // Get assessment configuration from data
+    // Get assessment configuration from static data
     const config = assessmentData.assessments[assessment.taskTitle];
     if (!config) {
       return res.status(404).json({ error: "Assessment configuration not found" });

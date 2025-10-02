@@ -1,3 +1,14 @@
+/**
+ * Reporting Service
+ * 
+ * This service handles automated reporting functionality including manager reports,
+ * analytics generation, and data aggregation. It provides comprehensive insights
+ * into user progress, assessment performance, and onboarding metrics.
+ * 
+ * @author Abhinav Maharana
+ * @version 1.0.0
+ */
+
 const Assessment = require("../models/assessment");
 const TaskStatus = require("../models/taskStatus");
 const ChecklistItem = require("../models/checklistItem");
@@ -5,16 +16,32 @@ const ManagerReport = require("../models/managerReport");
 const UserProgress = require("../models/userProgress");
 const { App } = require("@slack/bolt");
 
+/**
+ * ReportingService Class
+ * 
+ * Manages all reporting and analytics functionality for the onboarding system.
+ * Generates comprehensive reports for managers and administrators.
+ */
 class ReportingService {
+  /**
+   * Constructor
+   * 
+   * @param {App} slackApp - Slack Bolt app instance for sending reports
+   */
   constructor(slackApp) {
     this.slackApp = slackApp;
   }
 
   /**
-   * Generate comprehensive manager report
+   * Generate Comprehensive Manager Report
+   * 
+   * Creates a detailed report for managers showing their team's onboarding progress,
+   * assessment scores, completion rates, and areas of concern. This report is
+   * automatically generated and sent via Slack on scheduled days.
+   * 
    * @param {string} managerId - Slack user ID of the manager
-   * @param {Date} reportDate - Date for the report
-   * @returns {Object} Generated report data
+   * @param {Date} reportDate - Date for the report (defaults to current date)
+   * @returns {Promise<Object>} Generated report data with summary and detailed metrics
    */
   async generateManagerReport(managerId, reportDate = new Date()) {
     try {

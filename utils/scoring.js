@@ -1,9 +1,25 @@
 /**
- * Mock scoring system for assessments
- * In a real implementation, this would integrate with Google Forms API
- * or another assessment platform to get actual scores
+ * Assessment Scoring Utility
+ * 
+ * This module provides a mock scoring system for proctored assessments.
+ * In a production environment, this would integrate with Google Forms API
+ * or another assessment platform to retrieve actual scores and responses.
+ * 
+ * Features:
+ * - Simulates scoring based on time spent, violations, and attempt count
+ * - Provides realistic score distributions and feedback
+ * - Handles different assessment topics and difficulty levels
+ * 
+ * @author Abhinav Maharana
+ * @version 1.0.0
  */
 
+/**
+ * Assessment Topics Configuration
+ * 
+ * Defines the configuration for different assessment topics including
+ * question counts, passing scores, difficulty levels, and covered topics.
+ */
 const assessmentTopics = {
   "Fintech 101": {
     totalQuestions: 20,
@@ -218,8 +234,19 @@ function generateFeedback(score, passed, adjustments) {
  * @param {Object} responses - User responses
  * @returns {Promise<Object>} - Score and feedback
  */
+/**
+ * Simulate Google Forms Scoring
+ * 
+ * Simulates the process of scoring a Google Forms assessment by calculating
+ * a realistic score based on user performance, time spent, and violations.
+ * In production, this would integrate with Google Forms API.
+ * 
+ * @param {string} formUrl - URL of the Google Form
+ * @param {Object} responses - User responses and performance data
+ * @returns {Promise<Object>} - Score, pass/fail status, and feedback
+ */
 async function simulateGoogleFormsScoring(formUrl, responses = {}) {
-  // Simulate API delay
+  // Simulate API delay (1-3 seconds)
   await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
 
   // Extract task title from form URL (in real implementation, this would be from form metadata)
@@ -229,7 +256,7 @@ async function simulateGoogleFormsScoring(formUrl, responses = {}) {
     throw new Error("Could not determine assessment topic from form URL");
   }
 
-  // Calculate score
+  // Calculate score based on performance data
   const result = calculateScore(taskTitle, responses);
 
   return {

@@ -1,16 +1,42 @@
+/**
+ * Gamification Service
+ * 
+ * This service handles all gamification features including points, badges, levels,
+ * streaks, leaderboards, and achievement tracking. It provides methods to award
+ * points, manage user progress, and create engaging learning experiences.
+ * 
+ * @author Abhinav Maharana
+ * @version 1.0.0
+ */
+
 const UserProgress = require("../models/userProgress");
 const { App } = require("@slack/bolt");
 
+/**
+ * GamificationService Class
+ * 
+ * Manages all gamification functionality for the onboarding system.
+ * Integrates with Slack for notifications and user interactions.
+ */
 class GamificationService {
+  /**
+   * Constructor
+   * 
+   * @param {App} slackApp - Slack Bolt app instance for sending messages
+   */
   constructor(slackApp) {
     this.slackApp = slackApp;
   }
 
   /**
-   * Initialize user progress tracking
-   * @param {string} userId - User ID
-   * @param {Object} userData - User data
-   * @returns {Object} User progress object
+   * Initialize User Progress Tracking
+   * 
+   * Creates a new user progress record or returns existing one.
+   * Sets up initial gamification data including weekly goals and default values.
+   * 
+   * @param {string} userId - Slack user ID
+   * @param {Object} userData - User information (name, email, function, etc.)
+   * @returns {Promise<Object>} User progress document
    */
   async initializeUserProgress(userId, userData) {
     try {
@@ -38,11 +64,15 @@ class GamificationService {
   }
 
   /**
-   * Award points for completing tasks
-   * @param {string} userId - User ID
-   * @param {string} taskType - Type of task completed
-   * @param {Object} taskData - Task data
-   * @returns {Object} Updated user progress
+   * Award Points for Task Completion
+   * 
+   * Awards points, badges, and achievements based on the type of task completed.
+   * Different task types have different point values and unlock different rewards.
+   * 
+   * @param {string} userId - Slack user ID
+   * @param {string} taskType - Type of task (checklist_item, onboarding_task, assessment, etc.)
+   * @param {Object} taskData - Additional task information
+   * @returns {Promise<Object>} Updated user progress document
    */
   async awardTaskCompletion(userId, taskType, taskData) {
     try {
@@ -366,10 +396,14 @@ class GamificationService {
   }
 
   /**
-   * Get leaderboard
-   * @param {string} category - Leaderboard category
-   * @param {number} limit - Number of results
-   * @returns {Array} Leaderboard data
+   * Get Leaderboard
+   * 
+   * Retrieves a ranked list of users based on different criteria.
+   * Supports multiple categories like points, streaks, progress, and assessments.
+   * 
+   * @param {string} category - Leaderboard category (points, streak, progress, assessments)
+   * @param {number} limit - Maximum number of results to return
+   * @returns {Promise<Array>} Array of user progress documents sorted by criteria
    */
   async getLeaderboard(category = "points", limit = 10) {
     try {

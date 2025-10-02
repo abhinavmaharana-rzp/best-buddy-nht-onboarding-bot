@@ -1,8 +1,24 @@
+/**
+ * Assessment Model Tests
+ * 
+ * Comprehensive test suite for the Assessment Mongoose model.
+ * Tests schema validation, field requirements, data types, and business logic.
+ * 
+ * @author Abhinav Maharana
+ * @version 1.0.0
+ */
+
 const Assessment = require('../../models/assessment');
 
 describe('Assessment Model', () => {
+  /**
+   * Schema Validation Tests
+   * 
+   * Tests the basic schema validation including required fields,
+   * data types, and default values.
+   */
   describe('Schema Validation', () => {
-    test('should create a valid assessment', async () => {
+    test('should create a valid assessment with all required fields', async () => {
       const assessmentData = {
         userId: 'U1234567890',
         taskTitle: 'Fintech 101',

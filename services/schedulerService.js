@@ -1,8 +1,30 @@
+/**
+ * Scheduler Service
+ * 
+ * This service handles automated scheduling of background tasks including
+ * manager reports, progress updates, and system maintenance. It uses node-cron
+ * to schedule recurring tasks at specific times and intervals.
+ * 
+ * @author Abhinav Maharana
+ * @version 1.0.0
+ */
+
 const cron = require("node-cron");
 const ReportingService = require("./reportingService");
 const { App } = require("@slack/bolt");
 
+/**
+ * SchedulerService Class
+ * 
+ * Manages all scheduled tasks and automated processes for the onboarding system.
+ * Handles cron job scheduling, task execution, and error recovery.
+ */
 class SchedulerService {
+  /**
+   * Constructor
+   * 
+   * @param {App} slackApp - Slack Bolt app instance for sending notifications
+   */
   constructor(slackApp) {
     this.slackApp = slackApp;
     this.reportingService = new ReportingService(slackApp);
@@ -10,7 +32,11 @@ class SchedulerService {
   }
 
   /**
-   * Start the scheduler service
+   * Start Scheduler Service
+   * 
+   * Initializes and starts all scheduled tasks including manager reports,
+   * progress updates, and system maintenance. Prevents duplicate scheduling
+   * if the service is already running.
    */
   start() {
     if (this.isRunning) {
