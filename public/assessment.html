@@ -540,18 +540,22 @@
                 // Clear the form check interval
                 if (this.formCheckInterval) {
                     clearInterval(this.formCheckInterval);
+                    console.log('Cleared form check interval');
                 }
                 
                 // Clear the timeout
                 if (this.assessmentTimeout) {
                     clearTimeout(this.assessmentTimeout);
+                    console.log('Cleared assessment timeout');
                 }
                 
                 // Show loading state
+                console.log('Showing loading state...');
                 this.showLoading('Processing your assessment...');
                 
                 try {
                     // Calculate assessment score based on performance
+                    console.log('Calculating assessment score...');
                     const score = await this.calculateAssessmentScore();
                     const passed = score >= this.assessmentConfig.passingScore;
                     
@@ -559,13 +563,26 @@
                     
                     // Stop proctoring with actual score
                     if (this.proctoringSystem) {
-                        this.proctoringSystem.completeAssessment(score, passed);
+                        console.log('Stopping proctoring system...');
+                        try {
+                            await this.proctoringSystem.completeAssessment(score, passed);
+                            console.log('Proctoring system stopped');
+                        } catch (proctoringError) {
+                            console.error('Error stopping proctoring system:', proctoringError);
+                            // Force stop proctoring
+                            this.forceStopProctoring();
+                        }
+                    } else {
+                        console.log('No proctoring system found');
                     }
                     
                     // Submit assessment results to backend
+                    console.log('Submitting assessment results...');
                     await this.submitAssessmentResults(score, passed);
+                    console.log('Assessment results submitted');
                     
                     // Show appropriate result message
+                    console.log('Showing assessment result...');
                     this.showAssessmentResult(score, passed);
                     
                 } catch (error) {
@@ -664,6 +681,89 @@
                 // Update score displays
                 document.getElementById('userScore').textContent = score;
                 document.getElementById('requiredScore').textContent = this.assessmentConfig.passingScore;
+            }
+
+            showLoading(message = 'Loading...') {
+                // Hide all other content
+                document.getElementById('preAssessment').classList.add('hidden');
+                document.getElementById('assessmentContent').classList.add('hidden');
+                document.getElementById('completionMessage').classList.add('hidden');
+                document.getElementById('postAssessment').classList.add('hidden');
+                
+                // Show loading overlay
+                const loadingOverlay = document.getElementById('loadingOverlay');
+                if (loadingOverlay) {
+                    loadingOverlay.classList.remove('hidden');
+                    const loadingText = loadingOverlay.querySelector('#loadingText');
+                    if (loadingText) {
+                        loadingText.textContent = message;
+                    }
+                }
+            }
+
+            hideLoading() {
+                const loadingOverlay = document.getElementById('loadingOverlay');
+                if (loadingOverlay) {
+                    loadingOverlay.classList.add('hidden');
+                }
+            }
+
+            showError(message) {
+                // Hide loading
+                this.hideLoading();
+                
+                // Show error message
+                const errorDiv = document.getElementById('errorMessage');
+                if (errorDiv) {
+                    errorDiv.classList.remove('hidden');
+                    const errorText = errorDiv.querySelector('#errorText');
+                    if (errorText) {
+                        errorText.textContent = message;
+                    }
+                } else {
+                    // Create error message if it doesn't exist
+                    const errorHTML = `
+                        <div id="errorMessage" class="text-center p-8">
+                            <div class="text-red-600 text-6xl mb-4">❌</div>
+                            <h2 class="text-2xl font-bold text-red-800 mb-4">Error</h2>
+                            <p id="errorText" class="text-gray-600 mb-6">${message}</p>
+                            <button onclick="location.reload()" class="btn-primary">
+                                Try Again
+                            </button>
+                        </div>
+                    `;
+                    document.getElementById('assessmentContainer').innerHTML = errorHTML;
+                }
+            }
+
+            forceStopProctoring() {
+                console.log('Force stopping proctoring...');
+                
+                // Stop screen recording if active
+                if (this.proctoringSystem && this.proctoringSystem.mediaRecorder) {
+                    try {
+                        if (this.proctoringSystem.mediaRecorder.state === 'recording') {
+                            this.proctoringSystem.mediaRecorder.stop();
+                        }
+                    } catch (error) {
+                        console.error('Error stopping media recorder:', error);
+                    }
+                }
+                
+                // Clear any proctoring intervals
+                if (this.proctoringSystem && this.proctoringSystem.heartbeatInterval) {
+                    clearInterval(this.proctoringSystem.heartbeatInterval);
+                }
+                
+                // Update proctoring status display
+                const proctoringStatus = document.getElementById('proctoringStatus');
+                if (proctoringStatus) {
+                    proctoringStatus.classList.remove('recording');
+                    proctoringStatus.classList.add('stopped');
+                    proctoringStatus.textContent = 'Proctoring Stopped';
+                }
+                
+                console.log('Proctoring force stopped');
             }
 
             showCompletionMessage() {
