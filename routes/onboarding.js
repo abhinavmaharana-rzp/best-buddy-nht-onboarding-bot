@@ -8,6 +8,7 @@ const ChecklistItem = require("../models/checklistItem");
 const TaskStatus = require("../models/taskStatus");
 const TaskApproval = require("../models/taskApproval");
 const { text } = require("body-parser");
+const { getBaseUrl, getAssessmentUrl } = require("../utils/config");
 
 /**
  * @swagger
@@ -685,7 +686,7 @@ module.exports = (boltApp) => {
   const startProctoredAssessment = async (client, userId, task, weekIndex, dayIndex, taskIndex) => {
     try {
       // Start assessment via API
-      const response = await fetch(`${process.env.BASE_URL || 'http://localhost:3000'}/api/assessment/start`, {
+      const response = await fetch(`${getBaseUrl()}/api/assessment/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -704,7 +705,7 @@ module.exports = (boltApp) => {
       }
 
       const assessmentData = await response.json();
-      const assessmentUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/assessment.html?assessmentId=${assessmentData.assessmentId}&sessionId=${assessmentData.sessionId}`;
+      const assessmentUrl = getAssessmentUrl(assessmentData.assessmentId, assessmentData.sessionId);
 
       // Send assessment message to user
       await client.chat.postMessage({

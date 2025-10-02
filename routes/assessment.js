@@ -20,6 +20,7 @@ const TaskStatus = require("../models/taskStatus");
 const assessmentData = require("../data/assessmentData");
 const authMiddleware = require("../utils/auth");
 const { simulateGoogleFormsScoring } = require("../utils/scoring");
+const { getBaseUrl } = require("../utils/config");
 
 const router = express.Router();
 
@@ -528,7 +529,7 @@ router.post("/complete", async (req, res) => {
 
     // Call webhook for completion notification
     try {
-      await fetch(`${process.env.BASE_URL || 'http://localhost:3000'}/api/assessment/webhook/completion`, {
+      await fetch(`${getBaseUrl()}/api/assessment/webhook/completion`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
