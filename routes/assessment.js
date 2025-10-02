@@ -10,6 +10,7 @@
  */
 
 const express = require("express");
+const mongoose = require("mongoose");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
@@ -49,33 +50,8 @@ router.get("/data", (req, res) => {
   }
 });
 
-// Get specific assessment configuration
-router.get("/config/:assessmentId", (req, res) => {
-  try {
-    const { assessmentId } = req.params;
-    console.log(`Getting config for assessment: ${assessmentId}`);
-    
-    // Find assessment by ID or title
-    let assessment = null;
-    for (const [title, config] of Object.entries(assessmentData.assessments)) {
-      if (config.assessmentId === assessmentId || title === assessmentId) {
-        assessment = { ...config, taskTitle: title };
-        break;
-      }
-    }
-    
-    if (!assessment) {
-      return res.status(404).json({ error: "Assessment not found" });
-    }
-    
-    console.log(`Found assessment config:`, assessment.title);
-    res.json(assessment);
-    
-  } catch (error) {
-    console.error("Error getting assessment config:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+// NOTE: The config endpoint is defined later in the file (line ~601) with enhanced error handling
+// This duplicate definition has been removed to avoid conflicts
 
 /**
  * @swagger
