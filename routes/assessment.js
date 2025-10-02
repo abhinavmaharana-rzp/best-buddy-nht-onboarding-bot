@@ -17,6 +17,7 @@ const Assessment = require("../models/assessment");
 const ProctoringSession = require("../models/proctoringSession");
 const TaskApproval = require("../models/taskApproval");
 const TaskStatus = require("../models/taskStatus");
+const UserProgress = require("../models/userProgress");
 const assessmentData = require("../data/assessmentData");
 const authMiddleware = require("../utils/auth");
 const { simulateGoogleFormsScoring } = require("../utils/scoring");
@@ -46,6 +47,173 @@ router.get("/data", (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+/**
+ * @swagger
+ * /api/assessment/complete:
+ *   post:
+ *     summary: Complete an assessment with results
+ *     tags: [Assessment]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - assessmentId
+ *               - sessionId
+ *               - score
+ *               - passed
+ *             properties:
+ *               assessmentId:
+ *                 type: string
+ *                 description: Assessment ID
+ *               sessionId:
+ *                 type: string
+ *                 description: Proctoring session ID
+ *               score:
+ *                 type: number
+ *                 description: Assessment score (0-100)
+ *               passed:
+ *                 type: boolean
+ *                 description: Whether the assessment was passed
+ *               timeSpent:
+ *                 type: number
+ *                 description: Time spent in minutes
+ *               violations:
+ *                 type: number
+ *                 description: Number of violations
+ *               completedAt:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Completion timestamp
+ *     responses:
+ *       200:
+ *         description: Assessment completed successfully
+ *       400:
+ *         description: Invalid request
+ *       500:
+ *         description: Internal server error
+ */
+router.post("/complete", async (req, res) => {
+  try {
+    console.log("Assessment completion request:", req.body);
+    
+    const { assessmentId, sessionId, score, passed, timeSpent, violations, completedAt } = req.body;
+
+    // Validate required fields
+    if (!assessmentId || !sessionId || score === undefined || passed === undefined) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Update assessment record
+    const assessment = await Assessment.findByIdAndUpdate(
+      assessmentId,
+      {
+        status: "completed",
+        score: score,
+        passed: passed,
+        completedAt: new Date(completedAt),
+        timeSpent: timeSpent,
+        violations: violations || 0,
+        reason: passed ? "Assessment passed" : "Assessment failed"
+      },
+      { new: true }
+    );
+
+    if (!assessment) {
+      return res.status(404).json({ error: "Assessment not found" });
+    }
+
+    // Update proctoring session
+    await ProctoringSession.findOneAndUpdate(
+      { sessionId },
+      {
+        status: "completed",
+        endTime: new Date(),
+        duration: timeSpent ? Math.floor(timeSpent * 60) : 0
+      }
+    );
+
+    // Update user progress
+    await UserProgress.findOneAndUpdate(
+      { userId: assessment.userId },
+      {
+        $inc: {
+          "performance.totalAssessments": 1,
+          "performance.passedAssessments": passed ? 1 : 0
+        },
+        $set: {
+          "performance.averageAssessmentScore": await calculateAverageScore(assessment.userId),
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true }
+    );
+
+    // Create task approval if passed
+    if (passed) {
+      const approval = new TaskApproval({
+        userId: assessment.userId,
+        taskTitle: assessment.taskTitle,
+        weekIndex: assessment.weekIndex,
+        dayIndex: assessment.dayIndex,
+        taskIndex: assessment.taskIndex,
+        status: "approved",
+        requestedAt: new Date(),
+        reviewedAt: new Date(),
+        reviewedBy: "system",
+        messageTs: "auto-approved",
+        channelId: "assessment-system"
+      });
+      await approval.save();
+
+      // Update task status
+      await TaskStatus.findOneAndUpdate(
+        { userId: assessment.userId, weekIndex: assessment.weekIndex, dayIndex: assessment.dayIndex, taskIndex: assessment.taskIndex },
+        { completed: true },
+        { upsert: true }
+      );
+    }
+
+    console.log(`Assessment completed - User: ${assessment.userId}, Score: ${score}%, Passed: ${passed}`);
+
+    res.json({
+      success: true,
+      assessmentId: assessment._id,
+      score: score,
+      passed: passed,
+      message: passed ? "Assessment passed successfully!" : "Assessment not passed. Please try again."
+    });
+
+  } catch (error) {
+    console.error("Error completing assessment:", error);
+    res.status(500).json({ 
+      error: "Internal server error",
+      message: error.message
+    });
+  }
+});
+
+// Helper function to calculate average score
+async function calculateAverageScore(userId) {
+  try {
+    const assessments = await Assessment.find({ 
+      userId, 
+      status: "completed",
+      score: { $exists: true }
+    });
+    
+    if (assessments.length === 0) return 0;
+    
+    const totalScore = assessments.reduce((sum, assessment) => sum + assessment.score, 0);
+    return Math.round(totalScore / assessments.length);
+  } catch (error) {
+    console.error("Error calculating average score:", error);
+    return 0;
+  }
+}
 
 /**
  * File Upload Configuration

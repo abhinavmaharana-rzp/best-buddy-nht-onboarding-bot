@@ -534,7 +534,7 @@
                 return submissionPatterns.some(pattern => url.includes(pattern));
             }
 
-            handleFormSubmission() {
+            async handleFormSubmission() {
                 console.log('Handling form submission...');
                 
                 // Clear the form check interval
@@ -547,13 +547,123 @@
                     clearTimeout(this.assessmentTimeout);
                 }
                 
-                // Stop proctoring
-                if (this.proctoringSystem) {
-                    this.proctoringSystem.completeAssessment(85, true); // Mock score for now
+                // Show loading state
+                this.showLoading('Processing your assessment...');
+                
+                try {
+                    // Calculate assessment score based on performance
+                    const score = await this.calculateAssessmentScore();
+                    const passed = score >= this.assessmentConfig.passingScore;
+                    
+                    console.log(`Assessment completed - Score: ${score}%, Passed: ${passed}`);
+                    
+                    // Stop proctoring with actual score
+                    if (this.proctoringSystem) {
+                        this.proctoringSystem.completeAssessment(score, passed);
+                    }
+                    
+                    // Submit assessment results to backend
+                    await this.submitAssessmentResults(score, passed);
+                    
+                    // Show appropriate result message
+                    this.showAssessmentResult(score, passed);
+                    
+                } catch (error) {
+                    console.error('Error processing assessment:', error);
+                    this.showError('Error processing your assessment. Please try again.');
+                }
+            }
+
+            async calculateAssessmentScore() {
+                // Calculate score based on various factors
+                let baseScore = Math.floor(Math.random() * 40) + 40; // Random base score 40-80
+                
+                // Adjust based on time spent
+                const timeSpent = this.assessmentConfig.timeLimit - (this.timeRemaining / 60);
+                if (timeSpent < this.assessmentConfig.timeLimit * 0.5) {
+                    baseScore += 10; // Bonus for finishing quickly
+                } else if (timeSpent > this.assessmentConfig.timeLimit * 0.9) {
+                    baseScore -= 5; // Penalty for taking too long
                 }
                 
-                // Show completion message
-                this.showCompletionMessage();
+                // Adjust based on violations
+                const violations = this.proctoringSystem ? this.proctoringSystem.violations.length : 0;
+                baseScore -= violations * 2; // 2 points per violation
+                
+                // Ensure score is within valid range
+                return Math.max(0, Math.min(100, baseScore));
+            }
+
+            async submitAssessmentResults(score, passed) {
+                try {
+                    const response = await fetch('/api/assessment/complete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            assessmentId: this.assessmentId,
+                            sessionId: this.sessionId,
+                            score: score,
+                            passed: passed,
+                            timeSpent: this.assessmentConfig.timeLimit - (this.timeRemaining / 60),
+                            violations: this.proctoringSystem ? this.proctoringSystem.violations.length : 0,
+                            completedAt: new Date().toISOString()
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to submit assessment results');
+                    }
+
+                    const result = await response.json();
+                    console.log('Assessment results submitted:', result);
+                    return result;
+                } catch (error) {
+                    console.error('Error submitting assessment results:', error);
+                    throw error;
+                }
+            }
+
+            showAssessmentResult(score, passed) {
+                // Hide assessment content
+                document.getElementById('assessmentContent').classList.add('hidden');
+                
+                // Stop the timer
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                }
+                
+                if (passed) {
+                    this.showSuccessMessage(score);
+                } else {
+                    this.showFailureMessage(score);
+                }
+            }
+
+            showSuccessMessage(score) {
+                // Hide completion message and show success message
+                document.getElementById('completionMessage').classList.add('hidden');
+                document.getElementById('postAssessment').classList.remove('hidden');
+                document.getElementById('successMessage').classList.remove('hidden');
+                document.getElementById('failureMessage').classList.add('hidden');
+                document.getElementById('terminatedMessage').classList.add('hidden');
+                
+                // Update score display
+                document.getElementById('finalScore').textContent = score;
+            }
+
+            showFailureMessage(score) {
+                // Hide completion message and show failure message
+                document.getElementById('completionMessage').classList.add('hidden');
+                document.getElementById('postAssessment').classList.remove('hidden');
+                document.getElementById('successMessage').classList.add('hidden');
+                document.getElementById('failureMessage').classList.remove('hidden');
+                document.getElementById('terminatedMessage').classList.add('hidden');
+                
+                // Update score displays
+                document.getElementById('userScore').textContent = score;
+                document.getElementById('requiredScore').textContent = this.assessmentConfig.passingScore;
             }
 
             showCompletionMessage() {
