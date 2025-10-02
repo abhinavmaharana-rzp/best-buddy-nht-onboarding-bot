@@ -266,6 +266,14 @@
                         <p class="text-sm text-gray-600">Your screen is being recorded for proctoring purposes.</p>
                     </div>
                     <iframe id="assessmentIframe" class="assessment-iframe" src=""></iframe>
+                    
+                    <!-- Manual completion button -->
+                    <div class="mt-4 text-center">
+                        <p class="text-sm text-gray-600 mb-2">After submitting the form, click the button below:</p>
+                        <button id="completeAssessmentBtn" class="btn-primary">
+                            I Have Submitted the Form
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Completion Message -->
@@ -410,6 +418,10 @@
                 document.getElementById('startAssessmentBtn').addEventListener('click', () => {
                     this.startAssessment();
                 });
+                
+                document.getElementById('completeAssessmentBtn').addEventListener('click', () => {
+                    this.handleFormSubmission();
+                });
             }
 
             async startAssessment() {
@@ -426,6 +438,12 @@
                     
                     // Load assessment iframe
                     this.loadAssessmentIframe();
+                    
+                    // Set a timeout to automatically complete after time limit + 5 minutes
+                    this.assessmentTimeout = setTimeout(() => {
+                        console.log('Assessment timeout reached, auto-completing...');
+                        this.handleFormSubmission();
+                    }, (this.assessmentConfig.timeLimit + 5) * 60 * 1000);
                     
                     // Hide pre-assessment, show assessment content
                     document.getElementById('preAssessment').classList.add('hidden');
@@ -450,33 +468,70 @@
 
             setupFormSubmissionDetection() {
                 const iframe = document.getElementById('assessmentIframe');
+                let lastUrl = '';
                 
-                // Poll for form submission detection
+                // Listen for postMessage from iframe (if we can modify the form)
+                window.addEventListener('message', (event) => {
+                    if (event.data && event.data.type === 'FORM_SUBMITTED') {
+                        console.log('Form submission detected via postMessage!');
+                        this.handleFormSubmission();
+                    }
+                });
+                
+                // Poll for form submission detection (fallback)
                 this.formCheckInterval = setInterval(() => {
                     try {
                         // Check if iframe URL has changed (form submitted)
                         const currentUrl = iframe.contentWindow.location.href;
-                        if (currentUrl.includes('formResponse') || currentUrl.includes('thankyou') || currentUrl.includes('submitted')) {
+                        
+                        // Debug logging
+                        if (currentUrl !== lastUrl) {
+                            console.log('URL changed:', currentUrl);
+                            lastUrl = currentUrl;
+                        }
+                        
+                        // Check for Google Forms submission patterns
+                        if (this.isFormSubmitted(currentUrl)) {
                             console.log('Form submission detected!');
                             this.handleFormSubmission();
                         }
                     } catch (error) {
                         // Cross-origin error is expected, ignore
+                        console.log('Cross-origin access blocked (expected)');
                     }
-                }, 1000);
+                }, 2000); // Reduced frequency to avoid performance issues
 
                 // Also listen for iframe navigation changes
                 iframe.addEventListener('load', () => {
                     try {
                         const currentUrl = iframe.contentWindow.location.href;
-                        if (currentUrl.includes('formResponse') || currentUrl.includes('thankyou') || currentUrl.includes('submitted')) {
+                        console.log('Iframe loaded with URL:', currentUrl);
+                        
+                        if (this.isFormSubmitted(currentUrl)) {
                             console.log('Form submission detected via navigation!');
                             this.handleFormSubmission();
                         }
                     } catch (error) {
                         // Cross-origin error is expected, ignore
+                        console.log('Cross-origin access blocked on load (expected)');
                     }
                 });
+            }
+
+            isFormSubmitted(url) {
+                // Check for various Google Forms submission patterns
+                const submissionPatterns = [
+                    'formResponse',           // Standard Google Forms response
+                    'thankyou',              // Thank you page
+                    'submitted',             // Submitted page
+                    'viewform?usp=pp_url',   // Google Forms response with parameters
+                    'formResponse?',         // Response with query parameters
+                    'thanks',                // Thanks page
+                    'complete',              // Complete page
+                    'success'                // Success page
+                ];
+                
+                return submissionPatterns.some(pattern => url.includes(pattern));
             }
 
             handleFormSubmission() {
@@ -485,6 +540,11 @@
                 // Clear the form check interval
                 if (this.formCheckInterval) {
                     clearInterval(this.formCheckInterval);
+                }
+                
+                // Clear the timeout
+                if (this.assessmentTimeout) {
+                    clearTimeout(this.assessmentTimeout);
                 }
                 
                 // Stop proctoring
