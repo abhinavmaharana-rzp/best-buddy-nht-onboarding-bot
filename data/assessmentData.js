@@ -3,7 +3,7 @@ module.exports = {
   // Map of task titles to their assessment configurations
   assessments: {
     "Fintech 101": {
-      googleFormUrl: "https://forms.gle/your-fintech-101-form-url",
+      googleFormUrl: "https://docs.google.com/forms/d/e/1FAIpQLScKuPnU3dLrGGiVd4eWtdDAtFrEnwjEeoRdlOsYijnpCtCErQ/viewform",
       passingScore: 80,
       timeLimit: 30, // minutes
       maxAttempts: 3,

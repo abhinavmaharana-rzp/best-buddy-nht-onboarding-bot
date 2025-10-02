@@ -104,6 +104,7 @@ function calculateScore(taskTitle, userData = {}) {
   const passed = finalScore >= config.passingScore;
 
   return {
+    taskTitle,
     score: finalScore,
     passed,
     passingScore: config.passingScore,
@@ -274,8 +275,9 @@ async function simulateGoogleFormsScoring(formUrl, responses = {}) {
  * @returns {string|null} - Task title or null if not found
  */
 function extractTaskTitleFromUrl(formUrl) {
-  // In a real implementation, you'd have a mapping of form URLs to task titles
+  // Map of Google Form URLs to task titles
   const urlMappings = {
+    "1FAIpQLScKuPnU3dLrGGiVd4eWtdDAtFrEnwjEeoRdlOsYijnpCtCErQ": "Fintech 101",
     "fintech-101": "Fintech 101",
     "core-payments": "Core Payments",
     "core-payments-platform": "Core Payments and Platform",
@@ -285,10 +287,25 @@ function extractTaskTitleFromUrl(formUrl) {
     "cross-border-payments": "Cross Border Payments",
   };
 
-  // For testing purposes, return a random topic
-  // In real implementation, you'd look up the form ID in your database
+  // Extract form ID from Google Forms URL
+  const formIdMatch = formUrl.match(/\/d\/e\/([a-zA-Z0-9_-]+)/);
+  if (formIdMatch) {
+    const formId = formIdMatch[1];
+    if (urlMappings[formId]) {
+      return urlMappings[formId];
+    }
+  }
+
+  // Fallback: try to match by URL segments
+  for (const [key, value] of Object.entries(urlMappings)) {
+    if (formUrl.includes(key)) {
+      return value;
+    }
+  }
+
+  // Default fallback - return first available topic
   const topics = Object.keys(assessmentTopics);
-  return topics[Math.floor(Math.random() * topics.length)];
+  return topics[0] || "Fintech 101";
 }
 
 module.exports = {
