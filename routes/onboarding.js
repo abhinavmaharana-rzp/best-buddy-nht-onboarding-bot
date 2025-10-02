@@ -709,17 +709,24 @@ module.exports = (boltApp) => {
       console.log(`✅ Assessment created successfully:`, assessmentData);
       console.log(`🔗 Assessment URL: ${assessmentData.assessmentUrl}`);
 
+      // Determine message based on whether this is a resumed assessment
+      const isResumed = assessmentData.resumed;
+      const messageTitle = isResumed ? "🔄 Resume Proctored Assessment" : "📝 Proctored Assessment Required";
+      const messageText = isResumed 
+        ? `🔄 *Resume Proctored Assessment*\n\nYou have an existing assessment in progress for: *${task.title}*\n\nClick the button below to continue where you left off.`
+        : `📝 *Proctored Assessment Required*\n\nYou need to complete a proctored assessment for: *${task.title}*`;
+
       // Send assessment message to user
       await client.chat.postMessage({
         token: process.env.SLACK_BOT_TOKEN,
         channel: userId,
-        text: `📝 Proctored Assessment Required: ${task.title}`,
+        text: `${messageTitle}: ${task.title}`,
         blocks: [
           {
             type: "section",
             text: {
               type: "mrkdwn",
-              text: `📝 *Proctored Assessment Required*\n\nYou need to complete a proctored assessment for: *${task.title}*`,
+              text: messageText,
             },
           },
           {
@@ -743,7 +750,7 @@ module.exports = (boltApp) => {
                 type: "button",
                 text: {
                   type: "plain_text",
-                  text: "Start Proctored Assessment",
+                  text: isResumed ? "Resume Assessment" : "Start Proctored Assessment",
                   emoji: true,
                 },
                 url: assessmentData.assessmentUrl,

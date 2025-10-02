@@ -58,7 +58,46 @@ class AssessmentService {
         }
 
         if (existingAssessment.status === "in_progress") {
-          throw new Error("Assessment already in progress");
+          console.log(`🔄 Assessment already in progress, resuming existing assessment...`);
+          
+          // Check if the proctoring session is still active
+          const existingSession = await ProctoringSession.findOne({
+            assessmentId: existingAssessment._id,
+            status: "active"
+          });
+
+          if (existingSession) {
+            console.log(`✅ Found active proctoring session: ${existingSession.sessionId}`);
+            
+            // Return the existing assessment data
+            const assessmentUrl = getAssessmentUrl(existingAssessment._id, existingSession.sessionId);
+            
+            return {
+              assessmentId: existingAssessment._id,
+              sessionId: existingSession.sessionId,
+              assessmentUrl,
+              config: {
+                taskTitle: config.taskTitle || taskTitle,
+                description: config.description,
+                googleFormUrl: config.googleFormUrl,
+                passingScore: config.passingScore,
+                timeLimit: config.timeLimit,
+                maxAttempts: config.maxAttempts,
+                proctoringEnabled: config.proctoringEnabled,
+              },
+              proctoring: assessmentData.proctoring,
+              messages: assessmentData.messages,
+              resumed: true
+            };
+          } else {
+            console.log(`⚠️ No active proctoring session found, starting new assessment...`);
+            // Mark the old assessment as failed and start a new one
+            await Assessment.findByIdAndUpdate(existingAssessment._id, {
+              status: "failed",
+              completedAt: new Date(),
+              reason: "Session abandoned"
+            });
+          }
         }
       }
 
@@ -131,6 +170,50 @@ class AssessmentService {
       };
     } catch (error) {
       console.error("❌ Error starting assessment directly:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clean up abandoned assessments (older than 1 hour)
+   * This can be called periodically to clean up stale assessments
+   */
+  async cleanupAbandonedAssessments() {
+    try {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      
+      // Find assessments that are in progress but older than 1 hour
+      const abandonedAssessments = await Assessment.find({
+        status: "in_progress",
+        startedAt: { $lt: oneHourAgo }
+      });
+
+      console.log(`🧹 Found ${abandonedAssessments.length} abandoned assessments to clean up`);
+
+      for (const assessment of abandonedAssessments) {
+        // Mark assessment as failed
+        await Assessment.findByIdAndUpdate(assessment._id, {
+          status: "failed",
+          completedAt: new Date(),
+          reason: "Session timeout - abandoned"
+        });
+
+        // Mark proctoring session as terminated
+        await ProctoringSession.updateMany(
+          { assessmentId: assessment._id, status: "active" },
+          { 
+            status: "terminated",
+            endTime: new Date(),
+            duration: Math.floor((Date.now() - assessment.startedAt.getTime()) / 1000)
+          }
+        );
+
+        console.log(`✅ Cleaned up abandoned assessment: ${assessment._id}`);
+      }
+
+      return abandonedAssessments.length;
+    } catch (error) {
+      console.error("❌ Error cleaning up abandoned assessments:", error);
       throw error;
     }
   }
