@@ -17,7 +17,6 @@ const analyticsRoutes = require("./routes/analytics");
 // Import services
 const SchedulerService = require("./services/schedulerService");
 const GamificationService = require("./services/gamificationService");
-const AIAssistantService = require("./services/aiAssistantService");
 
 // Import the dashboard router creator
 const createDashboardRouter = require("./routes/dashboard");
@@ -93,16 +92,9 @@ expressApp.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
     // Initialize services
     const schedulerService = new SchedulerService(app);
     const gamificationService = new GamificationService(app);
-    const aiAssistantService = new AIAssistantService(app);
 
     // Start scheduler service
     schedulerService.start();
-
-    // Set up AI assistant slash command
-    app.command("/ask", async ({ ack, payload }) => {
-      await ack();
-      await aiAssistantService.handleSlashCommand(payload);
-    });
 
     // Start Express app
     expressApp.listen(process.env.PORT || 3000, () => {
@@ -119,7 +111,6 @@ expressApp.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
       console.log(
         `📈 Analytics Dashboard available at http://localhost:${process.env.PORT || 3000}/analytics`,
       );
-      console.log(`🤖 AI Assistant available via /ask command`);
       console.log(`🎮 Gamification system active`);
       console.log(`⏰ Scheduler service running`);
     });

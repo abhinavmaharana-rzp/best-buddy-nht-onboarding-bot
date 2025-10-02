@@ -292,7 +292,7 @@ describe('ReportingService', () => {
   describe('sendManagerReport', () => {
     test('should send manager report via Slack', async () => {
       const report = {
-        _id: new require('mongoose').Types.ObjectId(),
+        _id: new (require('mongoose').Types.ObjectId)(),
         managerId: 'U1234567890',
         reportDate: new Date(),
         summary: {

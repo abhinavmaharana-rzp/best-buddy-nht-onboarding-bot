@@ -34,14 +34,7 @@ This document outlines the comprehensive features that make the Razorpay Onboard
 - **Leaderboards**: Weekly and monthly performance rankings
 - **Social Features**: Peer interaction and collaboration rewards
 
-### 4. AI-Powered Learning Assistant
-- **Smart Q&A**: Natural language processing for common questions
-- **Knowledge Base**: Comprehensive FAQ and guidance system
-- **Personalized Recommendations**: Based on learning style and progress
-- **Slash Commands**: `/ask` command for instant help
-- **Learning Path Optimization**: AI-driven content recommendations
-
-### 5. Advanced Analytics Dashboard
+### 4. Advanced Analytics Dashboard
 - **Real-time Metrics**: Live progress and performance tracking
 - **Interactive Charts**: Progress over time, assessment performance
 - **Top Performers**: Recognition and leaderboard systems
@@ -93,27 +86,6 @@ This document outlines the comprehensive features that make the Razorpay Onboard
 - **Performance Insights**: Immediate feedback and recommendations
 - **Engagement Tracking**: Social activity and participation
 
-## 🤖 AI Assistant Features
-
-### Smart Q&A System
-- **Natural Language Processing**: Understands context and intent
-- **Knowledge Base**: 50+ pre-configured answers
-- **Category-based Responses**: Organized by topic and relevance
-- **Confidence Scoring**: Indicates answer reliability
-- **Related Suggestions**: Proactive question recommendations
-
-### Personalized Learning
-- **Learning Style Adaptation**: Visual, auditory, kinesthetic, reading
-- **Progress-based Recommendations**: Tailored to individual needs
-- **Difficulty Adjustment**: Adaptive content based on performance
-- **Time-based Suggestions**: Optimal learning times and schedules
-
-### Social Learning
-- **Peer Matching**: Connect with similar-level learners
-- **Mentor System**: Pair with experienced team members
-- **Group Challenges**: Collaborative learning activities
-- **Knowledge Sharing**: Community-driven content and tips
-
 ## 🔧 Technical Features
 
 ### Scalability
@@ -163,7 +135,7 @@ This document outlines the comprehensive features that make the Razorpay Onboard
 - **Resource Optimization**: Efficient resource allocation
 
 ### Machine Learning
-- **Content Recommendation**: AI-driven learning paths
+- **Content Recommendation**: Smart learning paths
 - **Performance Optimization**: Adaptive difficulty adjustment
 - **Engagement Prediction**: Identify engagement patterns
 - **Personalization Engine**: Continuous learning adaptation
@@ -200,12 +172,12 @@ This document outlines the comprehensive features that make the Razorpay Onboard
 - ✅ Proctored assessments
 - ✅ Manager reporting
 - ✅ Gamification system
-- ✅ AI assistant
+- ✅ Advanced analytics
 - ✅ Analytics dashboard
 
 ### Phase 2 (Next 3 months)
 - 🔄 Mobile app development
-- 🔄 Advanced AI features
+- 🔄 Advanced automation features
 - 🔄 Integration with more HR systems
 - 🔄 Advanced analytics and insights
 
@@ -238,7 +210,7 @@ This document outlines the comprehensive features that make the Razorpay Onboard
 ## 🏆 Competitive Advantages
 
 1. **Comprehensive Solution**: All-in-one onboarding platform
-2. **AI-Powered**: Intelligent automation and personalization
+2. **Smart-Powered**: Intelligent automation and personalization
 3. **Gamified Experience**: Engaging and motivating learning
 4. **Real-time Analytics**: Immediate insights and feedback
 5. **Proctored Assessments**: Academic integrity and quality
