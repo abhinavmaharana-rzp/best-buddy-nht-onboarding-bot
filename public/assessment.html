@@ -265,7 +265,32 @@
                         <h3 class="text-lg font-semibold mb-2">Complete the assessment below:</h3>
                         <p class="text-sm text-gray-600">Your screen is being recorded for proctoring purposes.</p>
                     </div>
-                    <iframe id="assessmentIframe" class="assessment-iframe" src=""></iframe>
+                    
+                    <!-- Google Forms iframe with CSP handling -->
+                    <div class="relative">
+                        <iframe 
+                            id="assessmentIframe" 
+                            class="assessment-iframe" 
+                            src=""
+                            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+                            referrerpolicy="no-referrer-when-downgrade">
+                        </iframe>
+                        
+                        <!-- CSP warning overlay (hidden by default) -->
+                        <div id="cspWarning" class="hidden absolute inset-0 bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="text-yellow-600 text-4xl mb-2">⚠️</div>
+                                <h4 class="font-semibold text-yellow-800 mb-2">Form Loading Issue</h4>
+                                <p class="text-sm text-yellow-700 mb-4">
+                                    The Google Form may not load due to security restrictions.<br>
+                                    Please click the button below to open it in a new tab.
+                                </p>
+                                <button id="openFormInNewTab" class="btn-primary">
+                                    Open Form in New Tab
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     
                     <!-- Automatic completion detection -->
                     <div class="mt-4 text-center">
@@ -435,6 +460,11 @@
                 document.getElementById('completeAssessmentBtn').addEventListener('click', () => {
                     this.handleFormSubmission();
                 });
+                
+                // Handle CSP warning and new tab functionality
+                document.getElementById('openFormInNewTab').addEventListener('click', () => {
+                    this.openFormInNewTab();
+                });
             }
 
             async startAssessment() {
@@ -470,13 +500,46 @@
 
             loadAssessmentIframe() {
                 const iframe = document.getElementById('assessmentIframe');
+                const cspWarning = document.getElementById('cspWarning');
+                
                 iframe.src = this.assessmentConfig.googleFormUrl;
                 
-                // Listen for iframe load
+                // Set up iframe load detection with CSP handling
+                let loadTimeout;
+                
                 iframe.onload = () => {
                     console.log('Assessment iframe loaded');
+                    clearTimeout(loadTimeout);
+                    cspWarning.classList.add('hidden');
                     this.setupFormSubmissionDetection();
                 };
+                
+                iframe.onerror = () => {
+                    console.log('Assessment iframe failed to load');
+                    clearTimeout(loadTimeout);
+                    cspWarning.classList.remove('hidden');
+                };
+                
+                // Show CSP warning if iframe doesn't load within 5 seconds
+                loadTimeout = setTimeout(() => {
+                    console.log('Assessment iframe loading timeout - showing CSP warning');
+                    cspWarning.classList.remove('hidden');
+                }, 5000);
+            }
+            
+            openFormInNewTab() {
+                const formUrl = this.assessmentConfig.googleFormUrl;
+                const newWindow = window.open(formUrl, '_blank', 'noopener,noreferrer');
+                
+                if (newWindow) {
+                    // Show instructions for new tab
+                    this.showNotification('Form opened in new tab. Complete the form and return here to continue.', 'info');
+                    
+                    // Show the complete assessment button
+                    document.getElementById('completeAssessmentBtn').classList.remove('hidden');
+                } else {
+                    this.showError('Unable to open form in new tab. Please check your popup blocker settings.');
+                }
             }
 
             setupFormSubmissionDetection() {

@@ -233,12 +233,22 @@ class ProctoringSystem {
   }
 
   getWarningMessage() {
+    // Default warning messages
+    const defaultWarnings = {
+      firstViolation: "This is your first warning. Please focus on the assessment.",
+      secondViolation: "This is your second warning. Further violations may result in assessment termination.",
+      finalWarning: "This is your final warning. Any further violations will result in immediate assessment termination."
+    };
+    
+    // Get warnings from config or use defaults
+    const warnings = this.config?.messages?.warnings || defaultWarnings;
+    
     if (this.warnings === 1) {
-      return this.config.messages.warnings.firstViolation;
+      return warnings.firstViolation || defaultWarnings.firstViolation;
     } else if (this.warnings === 2) {
-      return this.config.messages.warnings.secondViolation;
+      return warnings.secondViolation || defaultWarnings.secondViolation;
     } else {
-      return this.config.messages.warnings.finalWarning;
+      return warnings.finalWarning || defaultWarnings.finalWarning;
     }
   }
 

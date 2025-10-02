@@ -153,6 +153,110 @@ router.post("/calculate-score", async (req, res) => {
 
 /**
  * @swagger
+ * /api/assessment/event:
+ *   post:
+ *     summary: Log assessment events
+ *     tags: [Assessment]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               sessionId:
+ *                 type: string
+ *               eventType:
+ *                 type: string
+ *               data:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Event logged successfully
+ */
+router.post("/event", async (req, res) => {
+  try {
+    console.log("Assessment event received:", req.body);
+    
+    const { sessionId, eventType, data } = req.body;
+    
+    // Update proctoring session with event
+    if (sessionId) {
+      await ProctoringSession.findOneAndUpdate(
+        { sessionId },
+        {
+          $push: {
+            events: {
+              type: eventType,
+              data: data || {},
+              timestamp: new Date()
+            }
+          }
+        }
+      );
+    }
+    
+    res.json({ success: true, message: "Event logged successfully" });
+  } catch (error) {
+    console.error("Error logging assessment event:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/assessment/violation:
+ *   post:
+ *     summary: Log proctoring violations
+ *     tags: [Assessment]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               sessionId:
+ *                 type: string
+ *               violationType:
+ *                 type: string
+ *               details:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Violation logged successfully
+ */
+router.post("/violation", async (req, res) => {
+  try {
+    console.log("Proctoring violation received:", req.body);
+    
+    const { sessionId, violationType, details } = req.body;
+    
+    // Update proctoring session with violation
+    if (sessionId) {
+      await ProctoringSession.findOneAndUpdate(
+        { sessionId },
+        {
+          $push: {
+            violations: {
+              type: violationType,
+              details: details || {},
+              timestamp: new Date()
+            }
+          }
+        }
+      );
+    }
+    
+    res.json({ success: true, message: "Violation logged successfully" });
+  } catch (error) {
+    console.error("Error logging violation:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * @swagger
  * /api/assessment/complete:
  *   post:
  *     summary: Complete an assessment with results
