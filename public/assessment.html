@@ -267,11 +267,24 @@
                     </div>
                     <iframe id="assessmentIframe" class="assessment-iframe" src=""></iframe>
                     
-                    <!-- Manual completion button -->
+                    <!-- Automatic completion detection -->
                     <div class="mt-4 text-center">
-                        <p class="text-sm text-gray-600 mb-2">After submitting the form, click the button below:</p>
-                        <button id="completeAssessmentBtn" class="btn-primary">
-                            I Have Submitted the Form
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                            <p class="text-sm text-green-800 mb-2">
+                                <strong>Automatic Score Detection:</strong><br>
+                                Your score will be automatically detected when you submit the Google Form above.
+                            </p>
+                        </div>
+                        
+                        <div class="text-sm text-gray-600 mb-4">
+                            <p>📝 Complete the assessment in the form above</p>
+                            <p>⏱️ Your screen is being recorded for proctoring</p>
+                            <p>✅ Score will be automatically calculated</p>
+                        </div>
+                        
+                        <!-- Fallback manual button (hidden by default) -->
+                        <button id="completeAssessmentBtn" class="btn-primary hidden">
+                            Complete Assessment
                         </button>
                     </div>
                 </div>
@@ -551,15 +564,20 @@
                 
                 // Show loading state
                 console.log('Showing loading state...');
-                this.showLoading('Processing your assessment...');
+                this.showLoading('Processing your assessment and calculating score...');
                 
                 try {
-                    // Calculate assessment score based on performance
-                    console.log('Calculating assessment score...');
-                    const score = await this.calculateAssessmentScore();
-                    const passed = score >= this.assessmentConfig.passingScore;
+                    // Get score from Google Forms integration
+                    console.log('Calculating score from Google Forms...');
+                    const scoreResult = await this.calculateGoogleFormsScore();
                     
-                    console.log(`Assessment completed - Score: ${score}%, Passed: ${passed}`);
+                    if (!scoreResult.success) {
+                        throw new Error(scoreResult.error || 'Failed to calculate score');
+                    }
+                    
+                    const { score, rawScore, totalQuestions, passed } = scoreResult;
+                    
+                    console.log(`Assessment completed - Score: ${rawScore}/${totalQuestions} (${score}%), Passed: ${passed}`);
                     
                     // Stop proctoring with actual score
                     if (this.proctoringSystem) {
@@ -578,16 +596,51 @@
                     
                     // Submit assessment results to backend
                     console.log('Submitting assessment results...');
-                    await this.submitAssessmentResults(score, passed);
+                    await this.submitAssessmentResults(score, passed, rawScore, totalQuestions);
                     console.log('Assessment results submitted');
                     
                     // Show appropriate result message
                     console.log('Showing assessment result...');
-                    this.showAssessmentResult(score, passed);
+                    this.showAssessmentResult(score, passed, rawScore, totalQuestions);
                     
                 } catch (error) {
                     console.error('Error processing assessment:', error);
                     this.showError('Error processing your assessment. Please try again.');
+                }
+            }
+
+            async calculateGoogleFormsScore() {
+                try {
+                    console.log('Calculating Google Forms score...');
+                    
+                    // Call backend to process Google Forms score
+                    const response = await fetch('/api/assessment/calculate-score', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            assessmentId: this.assessmentId,
+                            formUrl: this.assessmentConfig.googleFormUrl,
+                            timeSpent: this.timeSpent,
+                            violations: this.proctoringSystem ? this.proctoringSystem.violations.length : 0
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to calculate score');
+                    }
+
+                    const result = await response.json();
+                    console.log('Google Forms score result:', result);
+                    
+                    return result;
+                } catch (error) {
+                    console.error('Error calculating Google Forms score:', error);
+                    return {
+                        success: false,
+                        error: error.message
+                    };
                 }
             }
 
@@ -611,7 +664,7 @@
                 return Math.max(0, Math.min(100, baseScore));
             }
 
-            async submitAssessmentResults(score, passed) {
+            async submitAssessmentResults(score, passed, rawScore = null, totalQuestions = null) {
                 try {
                     const response = await fetch('/api/assessment/complete', {
                         method: 'POST',
@@ -623,6 +676,8 @@
                             sessionId: this.sessionId,
                             score: score,
                             passed: passed,
+                            rawScore: rawScore,
+                            totalQuestions: totalQuestions,
                             timeSpent: this.assessmentConfig.timeLimit - (this.timeRemaining / 60),
                             violations: this.proctoringSystem ? this.proctoringSystem.violations.length : 0,
                             completedAt: new Date().toISOString()
@@ -642,7 +697,7 @@
                 }
             }
 
-            showAssessmentResult(score, passed) {
+            showAssessmentResult(score, passed, rawScore = null, totalQuestions = null) {
                 // Hide assessment content
                 document.getElementById('assessmentContent').classList.add('hidden');
                 
@@ -652,13 +707,13 @@
                 }
                 
                 if (passed) {
-                    this.showSuccessMessage(score);
+                    this.showSuccessMessage(score, rawScore, totalQuestions);
                 } else {
-                    this.showFailureMessage(score);
+                    this.showFailureMessage(score, rawScore, totalQuestions);
                 }
             }
 
-            showSuccessMessage(score) {
+            showSuccessMessage(score, rawScore = null, totalQuestions = null) {
                 // Hide completion message and show success message
                 document.getElementById('completionMessage').classList.add('hidden');
                 document.getElementById('postAssessment').classList.remove('hidden');
@@ -667,10 +722,14 @@
                 document.getElementById('terminatedMessage').classList.add('hidden');
                 
                 // Update score display
-                document.getElementById('finalScore').textContent = score;
+                if (rawScore && totalQuestions) {
+                    document.getElementById('finalScore').textContent = `${rawScore}/${totalQuestions} (${score}%)`;
+                } else {
+                    document.getElementById('finalScore').textContent = score;
+                }
             }
 
-            showFailureMessage(score) {
+            showFailureMessage(score, rawScore = null, totalQuestions = null) {
                 // Hide completion message and show failure message
                 document.getElementById('completionMessage').classList.add('hidden');
                 document.getElementById('postAssessment').classList.remove('hidden');
@@ -679,7 +738,11 @@
                 document.getElementById('terminatedMessage').classList.add('hidden');
                 
                 // Update score displays
-                document.getElementById('userScore').textContent = score;
+                if (rawScore && totalQuestions) {
+                    document.getElementById('userScore').textContent = `${rawScore}/${totalQuestions} (${score}%)`;
+                } else {
+                    document.getElementById('userScore').textContent = score;
+                }
                 document.getElementById('requiredScore').textContent = this.assessmentConfig.passingScore;
             }
 

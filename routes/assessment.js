@@ -18,6 +18,7 @@ const ProctoringSession = require("../models/proctoringSession");
 const TaskApproval = require("../models/taskApproval");
 const TaskStatus = require("../models/taskStatus");
 const UserProgress = require("../models/userProgress");
+const googleFormsService = require("../services/googleFormsService");
 const assessmentData = require("../data/assessmentData");
 const authMiddleware = require("../utils/auth");
 const { simulateGoogleFormsScoring } = require("../utils/scoring");
@@ -45,6 +46,108 @@ router.get("/data", (req, res) => {
   } catch (error) {
     console.error("Error getting assessment data:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/assessment/calculate-score:
+ *   post:
+ *     summary: Calculate score from Google Forms submission
+ *     tags: [Assessment]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               assessmentId:
+ *                 type: string
+ *               formUrl:
+ *                 type: string
+ *               timeSpent:
+ *                 type: number
+ *               violations:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Score calculated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 score:
+ *                   type: number
+ *                 rawScore:
+ *                   type: number
+ *                 totalQuestions:
+ *                   type: number
+ *                 passed:
+ *                   type: boolean
+ *       400:
+ *         description: Bad request
+ *       500:
+ *         description: Internal server error
+ */
+router.post("/calculate-score", async (req, res) => {
+  try {
+    console.log("Google Forms score calculation request:", req.body);
+    
+    const { assessmentId, formUrl, timeSpent, violations } = req.body;
+    
+    // Validate required fields
+    if (!assessmentId || !formUrl) {
+      return res.status(400).json({ 
+        success: false,
+        error: "Missing required fields: assessmentId and formUrl" 
+      });
+    }
+    
+    // Get assessment details
+    const assessment = await Assessment.findById(assessmentId);
+    if (!assessment) {
+      return res.status(404).json({ 
+        success: false,
+        error: "Assessment not found" 
+      });
+    }
+    
+    // Calculate score using Google Forms service
+    const scoreResult = await googleFormsService.processFormSubmission(formUrl, {
+      timeSpent: timeSpent || 0,
+      violations: violations || 0,
+      attemptCount: assessment.attemptCount || 1
+    });
+    
+    if (!scoreResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: scoreResult.error || "Failed to calculate score"
+      });
+    }
+    
+    console.log("Google Forms score calculated:", scoreResult);
+    
+    res.json({
+      success: true,
+      score: scoreResult.score,
+      rawScore: scoreResult.rawScore,
+      totalQuestions: scoreResult.totalQuestions,
+      passed: scoreResult.passed,
+      formId: scoreResult.formId
+    });
+    
+  } catch (error) {
+    console.error("Error calculating Google Forms score:", error);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+      message: error.message
+    });
   }
 });
 
@@ -100,7 +203,7 @@ router.post("/complete", async (req, res) => {
   try {
     console.log("Assessment completion request:", req.body);
     
-    const { assessmentId, sessionId, score, passed, timeSpent, violations, completedAt } = req.body;
+    const { assessmentId, sessionId, score, passed, rawScore, totalQuestions, timeSpent, violations, completedAt } = req.body;
 
     // Validate required fields
     if (!assessmentId || !sessionId || score === undefined || passed === undefined) {
@@ -111,8 +214,10 @@ router.post("/complete", async (req, res) => {
     const assessment = await Assessment.findByIdAndUpdate(
       assessmentId,
       {
-        status: "completed",
+        status: passed ? "completed" : "failed",
         score: score,
+        rawScore: rawScore,
+        totalQuestions: totalQuestions,
         passed: passed,
         completedAt: new Date(completedAt),
         timeSpent: timeSpent,
@@ -172,7 +277,13 @@ router.post("/complete", async (req, res) => {
       // Update task status
       await TaskStatus.findOneAndUpdate(
         { userId: assessment.userId, weekIndex: assessment.weekIndex, dayIndex: assessment.dayIndex, taskIndex: assessment.taskIndex },
-        { completed: true },
+        { 
+          completed: true,
+          score: score,
+          rawScore: rawScore,
+          totalQuestions: totalQuestions,
+          completedAt: new Date()
+        },
         { upsert: true }
       );
     }
@@ -183,6 +294,8 @@ router.post("/complete", async (req, res) => {
       success: true,
       assessmentId: assessment._id,
       score: score,
+      rawScore: rawScore,
+      totalQuestions: totalQuestions,
       passed: passed,
       message: passed ? "Assessment passed successfully!" : "Assessment not passed. Please try again."
     });
