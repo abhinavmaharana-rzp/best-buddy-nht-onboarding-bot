@@ -24,6 +24,16 @@ const { getBaseUrl } = require("../utils/config");
 
 const router = express.Router();
 
+// Health check endpoint
+router.get("/health", (req, res) => {
+  res.json({ 
+    status: "ok", 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    baseUrl: getBaseUrl()
+  });
+});
+
 /**
  * File Upload Configuration
  * 
@@ -164,13 +174,25 @@ router.get("/config/:assessmentId", async (req, res) => {
  */
 router.post("/start", async (req, res) => {
   try {
+    console.log(`🎯 Assessment start request received:`, req.body);
+    
     const { userId, taskTitle, weekIndex, dayIndex, taskIndex } = req.body;
+
+    // Validate required fields
+    if (!userId || !taskTitle || weekIndex === undefined || dayIndex === undefined || taskIndex === undefined) {
+      console.error(`❌ Missing required fields:`, { userId, taskTitle, weekIndex, dayIndex, taskIndex });
+      return res.status(400).json({ error: "Missing required fields" });
+    }
 
     // Check if assessment configuration exists
     const config = assessmentData.assessments[taskTitle];
     if (!config) {
+      console.error(`❌ Assessment configuration not found for task: ${taskTitle}`);
+      console.log(`📋 Available assessments:`, Object.keys(assessmentData.assessments));
       return res.status(400).json({ error: "Assessment configuration not found" });
     }
+
+    console.log(`✅ Found assessment config for ${taskTitle}:`, config);
 
     // Check if user has already attempted this assessment
     const existingAssessment = await Assessment.findOne({
@@ -197,6 +219,7 @@ router.post("/start", async (req, res) => {
     }
 
     // Create or update assessment
+    console.log(`💾 Creating/updating assessment in database...`);
     const assessment = await Assessment.findOneAndUpdate(
       { userId, weekIndex, dayIndex, taskIndex },
       {
@@ -216,7 +239,10 @@ router.post("/start", async (req, res) => {
       { upsert: true, new: true }
     );
 
+    console.log(`✅ Assessment created/updated:`, assessment._id);
+
     // Create proctoring session
+    console.log(`🎥 Creating proctoring session...`);
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const proctoringSession = new ProctoringSession({
       sessionId,
@@ -238,6 +264,7 @@ router.post("/start", async (req, res) => {
     });
 
     await proctoringSession.save();
+    console.log(`✅ Proctoring session created:`, sessionId);
 
     res.json({
       assessmentId: assessment._id,
@@ -255,8 +282,13 @@ router.post("/start", async (req, res) => {
       messages: assessmentData.messages,
     });
   } catch (error) {
-    console.error("Error starting assessment:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("❌ Error starting assessment:", error);
+    console.error("❌ Error stack:", error.stack);
+    res.status(500).json({ 
+      error: "Internal server error",
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 

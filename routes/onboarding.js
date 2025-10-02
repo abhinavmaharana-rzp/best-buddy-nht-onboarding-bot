@@ -685,8 +685,13 @@ module.exports = (boltApp) => {
   // Helper function to start proctored assessment
   const startProctoredAssessment = async (client, userId, task, weekIndex, dayIndex, taskIndex) => {
     try {
+      console.log(`🚀 Starting proctored assessment for user ${userId}, task: ${task.title}`);
+      
       // Start assessment via API
-      const response = await fetch(`${getBaseUrl()}/api/assessment/start`, {
+      const apiUrl = `${getBaseUrl()}/api/assessment/start`;
+      console.log(`📡 Making API call to: ${apiUrl}`);
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -700,12 +705,19 @@ module.exports = (boltApp) => {
         }),
       });
 
+      console.log(`📊 API Response status: ${response.status} ${response.statusText}`);
+
       if (!response.ok) {
-        throw new Error('Failed to start assessment');
+        const errorText = await response.text();
+        console.error(`❌ API Error Response: ${errorText}`);
+        throw new Error(`Failed to start assessment: ${response.status} - ${errorText}`);
       }
 
       const assessmentData = await response.json();
+      console.log(`✅ Assessment created successfully:`, assessmentData);
+      
       const assessmentUrl = getAssessmentUrl(assessmentData.assessmentId, assessmentData.sessionId);
+      console.log(`🔗 Assessment URL: ${assessmentUrl}`);
 
       // Send assessment message to user
       await client.chat.postMessage({
