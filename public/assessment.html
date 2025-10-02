@@ -272,7 +272,7 @@
                             id="assessmentIframe" 
                             class="assessment-iframe" 
                             src=""
-                            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation"
+                            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation allow-modals"
                             referrerpolicy="no-referrer-when-downgrade"
                             allow="fullscreen">
                         </iframe>
@@ -523,14 +523,40 @@
                 // Set up iframe load detection with CSP handling
                 let loadTimeout;
                 let hasLoaded = false;
+                let checkCount = 0;
+                const maxChecks = 10; // Check for 10 seconds
+                
+                const checkIfLoaded = () => {
+                    checkCount++;
+                    try {
+                        // Try to access iframe content to see if it loaded
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        if (iframeDoc && iframeDoc.readyState === 'complete') {
+                            console.log('Assessment iframe loaded successfully');
+                            hasLoaded = true;
+                            clearTimeout(loadTimeout);
+                            iframeLoading.classList.add('hidden');
+                            cspWarning.classList.add('hidden');
+                            this.setupFormSubmissionDetection();
+                            return;
+                        }
+                    } catch (error) {
+                        // Cross-origin access blocked (expected)
+                        console.log('Cross-origin access blocked (expected)');
+                    }
+                    
+                    // If not loaded and haven't exceeded max checks, try again
+                    if (!hasLoaded && checkCount < maxChecks) {
+                        setTimeout(checkIfLoaded, 1000);
+                    } else if (!hasLoaded) {
+                        console.log('Assessment iframe loading timeout - showing fallback');
+                        this.handleIframeLoadFailure();
+                    }
+                };
                 
                 iframe.onload = () => {
-                    console.log('Assessment iframe loaded successfully');
-                    hasLoaded = true;
-                    clearTimeout(loadTimeout);
-                    iframeLoading.classList.add('hidden');
-                    cspWarning.classList.add('hidden');
-                    this.setupFormSubmissionDetection();
+                    console.log('Assessment iframe onload event fired');
+                    checkIfLoaded();
                 };
                 
                 iframe.onerror = () => {
@@ -540,13 +566,13 @@
                     this.handleIframeLoadFailure();
                 };
                 
-                // Check if iframe loaded within 3 seconds
+                // Start checking after 2 seconds
                 loadTimeout = setTimeout(() => {
                     if (!hasLoaded) {
-                        console.log('Assessment iframe loading timeout - checking if loaded');
-                        this.handleIframeLoadFailure();
+                        console.log('Assessment iframe loading timeout - starting checks');
+                        checkIfLoaded();
                     }
-                }, 3000);
+                }, 2000);
             }
             
             handleIframeLoadFailure() {
@@ -1060,6 +1086,55 @@
 
             showError(message) {
                 alert('Error: ' + message);
+            }
+            
+            showNotification(message, type = 'info') {
+                // Create notification element if it doesn't exist
+                let notification = document.getElementById('notification');
+                if (!notification) {
+                    notification = document.createElement('div');
+                    notification.id = 'notification';
+                    notification.className = 'fixed top-4 right-4 z-50 max-w-sm p-4 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full';
+                    document.body.appendChild(notification);
+                }
+                
+                // Set notification content and style based on type
+                const typeClasses = {
+                    'info': 'bg-blue-50 border border-blue-200 text-blue-800',
+                    'success': 'bg-green-50 border border-green-200 text-green-800',
+                    'warning': 'bg-yellow-50 border border-yellow-200 text-yellow-800',
+                    'error': 'bg-red-50 border border-red-200 text-red-800'
+                };
+                
+                const icons = {
+                    'info': 'ℹ️',
+                    'success': '✅',
+                    'warning': '⚠️',
+                    'error': '❌'
+                };
+                
+                notification.className = `fixed top-4 right-4 z-50 max-w-sm p-4 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full ${typeClasses[type] || typeClasses.info}`;
+                notification.innerHTML = `
+                    <div class="flex items-center">
+                        <span class="text-lg mr-2">${icons[type] || icons.info}</span>
+                        <span class="text-sm font-medium">${message}</span>
+                        <button onclick="this.parentElement.parentElement.classList.add('translate-x-full')" class="ml-2 text-gray-400 hover:text-gray-600">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                
+                // Show notification
+                setTimeout(() => {
+                    notification.classList.remove('translate-x-full');
+                }, 100);
+                
+                // Auto-hide after 5 seconds
+                setTimeout(() => {
+                    notification.classList.add('translate-x-full');
+                }, 5000);
             }
 
             hideLoading() {
