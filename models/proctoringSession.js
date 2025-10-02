@@ -31,7 +31,6 @@ const proctoringSessionSchema = new mongoose.Schema({
   userId: {
     type: String,
     required: true,
-    index: true,
     comment: "Slack user ID of the person being proctored"
   },
   assessmentId: {
