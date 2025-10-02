@@ -268,6 +268,18 @@
                     <iframe id="assessmentIframe" class="assessment-iframe" src=""></iframe>
                 </div>
 
+                <!-- Completion Message -->
+                <div id="completionMessage" class="hidden text-center p-8">
+                    <div class="text-green-600 text-6xl mb-4">✅</div>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4">Assessment Submitted Successfully!</h2>
+                    <p class="text-gray-600 mb-6">Thank you for completing the assessment. Your responses have been recorded and will be reviewed.</p>
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <p class="text-blue-800">
+                            <strong>Next Steps:</strong> You will receive a notification in Slack once your assessment is scored and reviewed.
+                        </p>
+                    </div>
+                </div>
+
                 <!-- Post-Assessment -->
                 <div id="postAssessment" class="hidden text-center">
                     <div id="successMessage" class="hidden">
@@ -355,7 +367,23 @@
                         throw new Error('Failed to load assessment configuration');
                     }
                     
-                    this.assessmentConfig = await response.json();
+                    const config = await response.json();
+                    
+                    // Load the full assessment data including proctoring config
+                    const fullResponse = await fetch('/api/assessment/data');
+                    if (!fullResponse.ok) {
+                        throw new Error('Failed to load assessment data');
+                    }
+                    
+                    const fullData = await fullResponse.json();
+                    
+                    // Merge the config with the full assessment data
+                    this.assessmentConfig = {
+                        ...config,
+                        proctoring: fullData.proctoring,
+                        messages: fullData.messages
+                    };
+                    
                     this.updateAssessmentInfo();
                     
                 } catch (error) {
@@ -416,7 +444,74 @@
                 // Listen for iframe load
                 iframe.onload = () => {
                     console.log('Assessment iframe loaded');
+                    this.setupFormSubmissionDetection();
                 };
+            }
+
+            setupFormSubmissionDetection() {
+                const iframe = document.getElementById('assessmentIframe');
+                
+                // Poll for form submission detection
+                this.formCheckInterval = setInterval(() => {
+                    try {
+                        // Check if iframe URL has changed (form submitted)
+                        const currentUrl = iframe.contentWindow.location.href;
+                        if (currentUrl.includes('formResponse') || currentUrl.includes('thankyou') || currentUrl.includes('submitted')) {
+                            console.log('Form submission detected!');
+                            this.handleFormSubmission();
+                        }
+                    } catch (error) {
+                        // Cross-origin error is expected, ignore
+                    }
+                }, 1000);
+
+                // Also listen for iframe navigation changes
+                iframe.addEventListener('load', () => {
+                    try {
+                        const currentUrl = iframe.contentWindow.location.href;
+                        if (currentUrl.includes('formResponse') || currentUrl.includes('thankyou') || currentUrl.includes('submitted')) {
+                            console.log('Form submission detected via navigation!');
+                            this.handleFormSubmission();
+                        }
+                    } catch (error) {
+                        // Cross-origin error is expected, ignore
+                    }
+                });
+            }
+
+            handleFormSubmission() {
+                console.log('Handling form submission...');
+                
+                // Clear the form check interval
+                if (this.formCheckInterval) {
+                    clearInterval(this.formCheckInterval);
+                }
+                
+                // Stop proctoring
+                if (this.proctoringSystem) {
+                    this.proctoringSystem.completeAssessment(85, true); // Mock score for now
+                }
+                
+                // Show completion message
+                this.showCompletionMessage();
+            }
+
+            showCompletionMessage() {
+                // Hide assessment content
+                document.getElementById('assessmentContent').classList.add('hidden');
+                
+                // Show completion message
+                document.getElementById('completionMessage').classList.remove('hidden');
+                
+                // Stop the timer
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                }
+                
+                // Stop proctoring
+                if (this.proctoringSystem) {
+                    this.proctoringSystem.completeAssessment(85, true); // Mock score for now
+                }
             }
 
             startTimer() {

@@ -34,6 +34,19 @@ router.get("/health", (req, res) => {
   });
 });
 
+// Get full assessment data (proctoring config, messages, etc.)
+router.get("/data", (req, res) => {
+  try {
+    res.json({
+      proctoring: assessmentData.proctoring,
+      messages: assessmentData.messages
+    });
+  } catch (error) {
+    console.error("Error getting assessment data:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 /**
  * File Upload Configuration
  * 
