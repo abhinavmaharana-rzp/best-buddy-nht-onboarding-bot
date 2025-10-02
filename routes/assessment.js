@@ -601,18 +601,59 @@ const upload = multer({
 router.get("/config/:assessmentId", async (req, res) => {
   try {
     const { assessmentId } = req.params;
+    console.log(`🔍 Assessment config request for ID: ${assessmentId}`);
+    
+    // Validate assessment ID format
+    if (!mongoose.Types.ObjectId.isValid(assessmentId)) {
+      console.error(`❌ Invalid assessment ID format: ${assessmentId}`);
+      return res.status(400).json({ 
+        error: "Invalid assessment ID format",
+        code: "INVALID_ASSESSMENT_ID",
+        assessmentId: assessmentId
+      });
+    }
     
     // Find the assessment in the database
     const assessment = await Assessment.findById(assessmentId);
     if (!assessment) {
-      return res.status(404).json({ error: "Assessment not found" });
+      console.error(`❌ Assessment not found: ${assessmentId}`);
+      
+      // Check if there are any assessments at all
+      const totalAssessments = await Assessment.countDocuments();
+      console.log(`📊 Total assessments in database: ${totalAssessments}`);
+      
+      // Show recent assessments for debugging
+      const recentAssessments = await Assessment.find()
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select('_id taskTitle status createdAt');
+      console.log(`📋 Recent assessments:`, recentAssessments);
+      
+      return res.status(404).json({ 
+        error: "Assessment not found",
+        code: "ASSESSMENT_NOT_FOUND",
+        assessmentId: assessmentId,
+        totalAssessments: totalAssessments,
+        recentAssessments: recentAssessments
+      });
     }
+
+    console.log(`✅ Assessment found: ${assessment.taskTitle} (${assessment.status})`);
 
     // Get assessment configuration from static data
     const config = assessmentData.assessments[assessment.taskTitle];
     if (!config) {
-      return res.status(404).json({ error: "Assessment configuration not found" });
+      console.error(`❌ Assessment configuration not found for task: ${assessment.taskTitle}`);
+      console.log(`📋 Available assessments:`, Object.keys(assessmentData.assessments));
+      return res.status(404).json({ 
+        error: "Assessment configuration not found",
+        code: "CONFIG_NOT_FOUND",
+        taskTitle: assessment.taskTitle,
+        availableAssessments: Object.keys(assessmentData.assessments)
+      });
     }
+
+    console.log(`✅ Assessment config found for: ${assessment.taskTitle}`);
 
     const response = {
       assessmentId: assessment._id,
@@ -628,10 +669,15 @@ router.get("/config/:assessmentId", async (req, res) => {
       taskIndex: assessment.taskIndex,
     };
 
+    console.log(`✅ Returning assessment config for: ${assessment.taskTitle}`);
     res.json(response);
   } catch (error) {
-    console.error("Error getting assessment config:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("❌ Error getting assessment config:", error);
+    res.status(500).json({ 
+      error: "Internal server error",
+      code: "INTERNAL_ERROR",
+      message: error.message
+    });
   }
 });
 

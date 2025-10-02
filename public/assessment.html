@@ -418,34 +418,80 @@
 
             async loadAssessmentConfig() {
                 try {
+                    console.log(`🔍 Loading assessment config for ID: ${this.assessmentId}`);
+                    
+                    // Validate assessment ID format
+                    if (!this.isValidObjectId(this.assessmentId)) {
+                        throw new Error('Invalid assessment ID format. Please check the URL and try again.');
+                    }
+                    
                     const response = await fetch(`/api/assessment/config/${this.assessmentId}`);
                     if (!response.ok) {
-                        throw new Error('Failed to load assessment configuration');
+                        const errorData = await response.json().catch(() => ({}));
+                        console.error('Assessment config error:', errorData);
+                        
+                        if (response.status === 404) {
+                            if (errorData.code === 'ASSESSMENT_NOT_FOUND') {
+                                throw new Error('Assessment not found. This assessment may have expired or been deleted. Please start a new assessment.');
+                            } else if (errorData.code === 'CONFIG_NOT_FOUND') {
+                                throw new Error('Assessment configuration not found. Please contact support.');
+                            } else {
+                                throw new Error('Assessment not found. Please start a new assessment.');
+                            }
+                        } else if (response.status === 400) {
+                            throw new Error('Invalid assessment ID. Please check the URL and try again.');
+                        } else {
+                            throw new Error(`Failed to load assessment configuration (${response.status}). Please try again.`);
+                        }
                     }
                     
                     const config = await response.json();
+                    console.log('✅ Assessment config loaded:', config.taskTitle);
                     
                     // Load the full assessment data including proctoring config
                     const fullResponse = await fetch('/api/assessment/data');
                     if (!fullResponse.ok) {
-                        throw new Error('Failed to load assessment data');
+                        console.warn('⚠️ Failed to load full assessment data, using basic config');
+                        // Continue with basic config if full data fails
+                        this.assessmentConfig = {
+                            ...config,
+                            proctoring: {
+                                screenRecording: { enabled: true, quality: "medium", frameRate: 1 },
+                                violations: {
+                                    tabSwitch: { enabled: true, maxAllowed: 3, severity: "medium" },
+                                    windowFocusLoss: { enabled: true, maxAllowed: 5, severity: "low" },
+                                    copyPaste: { enabled: true, maxAllowed: 0, severity: "high" },
+                                    rightClick: { enabled: true, maxAllowed: 0, severity: "high" }
+                                }
+                            },
+                            messages: {
+                                start: { title: "Assessment Starting", content: "Your assessment is about to begin." },
+                                instructions: ["Follow all assessment rules", "Do not switch tabs", "Complete within time limit"],
+                                success: { title: "Assessment Completed", content: "Congratulations on completing the assessment." },
+                                failure: { title: "Assessment Not Passed", content: "Please review the material and try again." }
+                            }
+                        };
+                    } else {
+                        const fullData = await fullResponse.json();
+                        
+                        // Merge the config with the full assessment data
+                        this.assessmentConfig = {
+                            ...config,
+                            proctoring: fullData.proctoring,
+                            messages: fullData.messages
+                        };
                     }
-                    
-                    const fullData = await fullResponse.json();
-                    
-                    // Merge the config with the full assessment data
-                    this.assessmentConfig = {
-                        ...config,
-                        proctoring: fullData.proctoring,
-                        messages: fullData.messages
-                    };
                     
                     this.updateAssessmentInfo();
                     
                 } catch (error) {
-                    console.error('Error loading assessment config:', error);
+                    console.error('❌ Error loading assessment config:', error);
                     throw error;
                 }
+            }
+            
+            isValidObjectId(id) {
+                return /^[0-9a-fA-F]{24}$/.test(id);
             }
 
             updateAssessmentInfo() {
