@@ -49,6 +49,34 @@ router.get("/data", (req, res) => {
   }
 });
 
+// Get specific assessment configuration
+router.get("/config/:assessmentId", (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+    console.log(`Getting config for assessment: ${assessmentId}`);
+    
+    // Find assessment by ID or title
+    let assessment = null;
+    for (const [title, config] of Object.entries(assessmentData.assessments)) {
+      if (config.assessmentId === assessmentId || title === assessmentId) {
+        assessment = { ...config, taskTitle: title };
+        break;
+      }
+    }
+    
+    if (!assessment) {
+      return res.status(404).json({ error: "Assessment not found" });
+    }
+    
+    console.log(`Found assessment config:`, assessment.title);
+    res.json(assessment);
+    
+  } catch (error) {
+    console.error("Error getting assessment config:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 /**
  * @swagger
  * /api/admin/assessments:

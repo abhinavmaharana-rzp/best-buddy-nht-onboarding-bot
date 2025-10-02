@@ -3,497 +3,375 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Custom Assessment Form</title>
+    <title>Custom Assessment</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .question-card {
-            transition: all 0.3s ease;
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f8fafc; 
+            color: #1e293b; 
         }
-        .question-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        .container { 
+            max-width: 800px; 
+            margin: 20px auto; 
+            padding: 20px; 
+            background-color: #fff; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
         }
-        .option-selected {
-            background-color: #3b82f6;
-            color: white;
-            border-color: #3b82f6;
+        .question-card { 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            padding: 20px; 
+            margin-bottom: 20px; 
+            background-color: #f8fafc; 
+        }
+        .option-label { 
+            display: block; 
+            padding: 10px; 
+            margin-bottom: 10px; 
+            border: 1px solid #cbd5e1; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            transition: all 0.2s ease-in-out; 
+        }
+        .option-label:hover { 
+            background-color: #eff6ff; 
+            border-color: #93c5fd; 
+        }
+        .option-label input:checked + span { 
+            background-color: #2563eb; 
+            color: #fff; 
+            border-color: #2563eb; 
+        }
+        .option-label input { 
+            display: none; 
+        }
+        .option-label span { 
+            display: block; 
+            padding: 8px; 
+            border-radius: 4px; 
+        }
+        .btn-primary { 
+            background-color: #2563eb; 
+            color: #fff; 
+            padding: 10px 20px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            transition: background-color 0.2s; 
+        }
+        .btn-primary:hover { 
+            background-color: #1d4ed8; 
+        }
+        .btn-secondary { 
+            background-color: #e2e8f0; 
+            color: #1e293b; 
+            padding: 10px 20px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            transition: background-color 0.2s; 
+        }
+        .btn-secondary:hover { 
+            background-color: #cbd5e1; 
+        }
+        .progress-bar { 
+            height: 8px; 
+            background-color: #e2e8f0; 
+            border-radius: 4px; 
+            overflow: hidden; 
+        }
+        .progress-fill { 
+            height: 100%; 
+            background-color: #2563eb; 
+            width: 0%; 
+            transition: width 0.3s ease-in-out; 
+        }
+        .hidden { 
+            display: none; 
+        }
+        .loading { 
+            text-align: center; 
+            padding: 40px; 
+        }
+        .spinner { 
+            border: 4px solid #f3f4f6; 
+            border-top: 4px solid #2563eb; 
+            border-radius: 50%; 
+            width: 40px; 
+            height: 40px; 
+            animation: spin 1s linear infinite; 
+            margin: 0 auto 20px; 
+        }
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
         }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <div class="container mx-auto px-4 py-8 max-w-4xl">
-        <!-- Header -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h1 class="text-3xl font-bold text-gray-900 mb-2" id="assessmentTitle">Assessment</h1>
-            <p class="text-gray-600" id="assessmentDescription">Please answer all questions to complete the assessment.</p>
-            <div class="mt-4 flex justify-between items-center">
-                <span class="text-sm text-gray-500">Progress: <span id="progress">0</span>%</span>
-                <span class="text-sm text-gray-500">Time: <span id="timer">00:00</span></span>
-            </div>
+<body>
+    <div class="container">
+        <!-- Loading State -->
+        <div id="loadingState" class="loading">
+            <div class="spinner"></div>
+            <h2 class="text-xl font-semibold mb-2">Loading Assessment...</h2>
+            <p class="text-gray-600">Please wait while we prepare your assessment.</p>
         </div>
 
-        <!-- Questions Container -->
-        <div id="questionsContainer" class="space-y-6">
-            <!-- Questions will be dynamically loaded here -->
-        </div>
+        <!-- Assessment Content -->
+        <div id="assessmentContent" class="hidden">
+            <h1 id="assessmentTitle" class="text-3xl font-bold text-center mb-6">Assessment</h1>
+            <p id="assessmentDescription" class="text-center text-gray-600 mb-6"></p>
 
-        <!-- Navigation -->
-        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
-            <div class="flex justify-between items-center">
-                <button id="prevBtn" class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                    Previous
-                </button>
-                <span class="text-sm text-gray-500">
-                    Question <span id="currentQuestion">1</span> of <span id="totalQuestions">0</span>
-                </span>
-                <button id="nextBtn" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                    Next
-                </button>
-            </div>
-        </div>
-
-        <!-- Submit Section -->
-        <div id="submitSection" class="bg-white rounded-lg shadow-md p-6 mt-6 hidden">
-            <div class="text-center">
-                <h3 class="text-xl font-semibold text-gray-900 mb-4">Ready to Submit?</h3>
-                <p class="text-gray-600 mb-6">Please review your answers before submitting. You cannot change them after submission.</p>
-                <button id="submitBtn" class="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-lg font-semibold">
-                    Submit Assessment
-                </button>
-            </div>
-        </div>
-
-        <!-- Results Section -->
-        <div id="resultsSection" class="bg-white rounded-lg shadow-md p-6 mt-6 hidden">
-            <div class="text-center">
-                <div id="resultIcon" class="text-6xl mb-4">🎉</div>
-                <h3 id="resultTitle" class="text-2xl font-bold mb-4">Assessment Complete!</h3>
-                <p id="resultMessage" class="text-gray-600 mb-6">Your results have been submitted successfully.</p>
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <div class="grid grid-cols-2 gap-4 text-center">
-                        <div>
-                            <div class="text-2xl font-bold text-blue-600" id="scoreDisplay">0%</div>
-                            <div class="text-sm text-gray-500">Your Score</div>
-                        </div>
-                        <div>
-                            <div class="text-2xl font-bold text-green-600" id="statusDisplay">Passed</div>
-                            <div class="text-sm text-gray-500">Status</div>
-                        </div>
-                    </div>
+            <!-- Progress Bar and Timer -->
+            <div class="mb-6">
+                <div class="flex justify-between text-sm font-medium text-gray-600 mb-1">
+                    <span>Progress: <span id="progressText">0%</span></span>
+                    <span>Time: <span id="timer">00:00</span></span>
+                </div>
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
                 </div>
             </div>
+
+            <!-- Assessment Questions -->
+            <div id="assessmentQuestions">
+                <!-- Questions will be dynamically loaded here -->
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="flex justify-between mt-6">
+                <button id="prevBtn" class="btn-secondary hidden">Previous</button>
+                <button id="nextBtn" class="btn-primary">Next</button>
+                <button id="submitBtn" class="btn-primary hidden">Submit Assessment</button>
+            </div>
+
+            <!-- Result Display -->
+            <div id="resultDisplay" class="hidden text-center mt-10 p-8 rounded-lg">
+                <h2 id="resultTitle" class="text-2xl font-bold mb-4"></h2>
+                <p class="text-lg mb-2">Your Score: <span id="finalScore"></span></p>
+                <p class="text-gray-600" id="resultMessage"></p>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="hidden text-center p-8">
+            <div class="text-red-600 text-6xl mb-4">❌</div>
+            <h2 class="text-2xl font-bold text-red-800 mb-4">Error</h2>
+            <p id="errorMessage" class="text-red-600 mb-4"></p>
+            <button onclick="window.close()" class="btn-primary">Close</button>
         </div>
     </div>
 
     <script>
-        class CustomAssessmentForm {
-            constructor() {
-                this.questions = [];
-                this.currentQuestionIndex = 0;
-                this.answers = {};
-                this.startTime = null;
-                this.timerInterval = null;
-                this.assessmentId = null;
-                this.sessionId = null;
-                
-                this.init();
-            }
+        let questions = [];
+        let assessmentConfig = {};
+        let currentQuestionIndex = 0;
+        let userAnswers = [];
+        let startTime;
+        let timerInterval;
+        let passingScorePercentage = 80;
 
-            async init() {
-                // Get assessment parameters from URL
-                const urlParams = new URLSearchParams(window.location.search);
-                this.assessmentId = urlParams.get('assessmentId');
-                this.sessionId = urlParams.get('sessionId');
-                
-                // Load assessment data
-                await this.loadAssessmentData();
-                
-                // Setup event listeners
-                this.setupEventListeners();
-                
-                // Start timer
-                this.startTimer();
-                
-                // Render first question
-                this.renderQuestion();
-            }
+        // Load assessment data from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const assessmentId = urlParams.get('assessmentId');
+        const sessionId = urlParams.get('sessionId');
 
-            async loadAssessmentData() {
-                try {
-                    // Load assessment configuration
-                    const response = await fetch(`/api/assessment/config/${this.assessmentId}`);
-                    const config = await response.json();
-                    
-                    // Load questions for this assessment
-                    this.questions = await this.loadQuestions(config.taskTitle);
-                    
-                    // Update UI
-                    document.getElementById('assessmentTitle').textContent = `${config.taskTitle} - Assessment`;
-                    document.getElementById('assessmentDescription').textContent = config.description || 'Please answer all questions to complete the assessment.';
-                    document.getElementById('totalQuestions').textContent = this.questions.length;
-                    
-                } catch (error) {
-                    console.error('Error loading assessment data:', error);
-                    this.showError('Failed to load assessment data');
+        // Load assessment configuration
+        async function loadAssessmentConfig() {
+            try {
+                console.log('Loading assessment config for:', assessmentId);
+                const response = await fetch(`/api/assessment/config/${assessmentId}`);
+                if (!response.ok) {
+                    throw new Error('Failed to load assessment configuration');
                 }
-            }
-
-            async loadQuestions(taskTitle) {
-                // Define questions for different assessments
-                const questionSets = {
-                    'Fintech 101': [
-                        {
-                            question: 'What is the primary purpose of a payment gateway?',
-                            options: [
-                                { value: 'A', text: 'To store customer data securely' },
-                                { value: 'B', text: 'To process online payments between merchants and customers' },
-                                { value: 'C', text: 'To create mobile applications' },
-                                { value: 'D', text: 'To manage inventory systems' }
-                            ],
-                            correct: 'B'
-                        },
-                        {
-                            question: 'Which of the following is NOT a type of payment method?',
-                            options: [
-                                { value: 'A', text: 'Credit Card' },
-                                { value: 'B', text: 'Digital Wallet' },
-                                { value: 'C', text: 'Cryptocurrency' },
-                                { value: 'D', text: 'Email Address' }
-                            ],
-                            correct: 'D'
-                        },
-                        {
-                            question: 'What does PCI DSS stand for?',
-                            options: [
-                                { value: 'A', text: 'Payment Card Industry Data Security Standard' },
-                                { value: 'B', text: 'Personal Credit Information Data Security System' },
-                                { value: 'C', text: 'Payment Compliance and Data Security Standards' },
-                                { value: 'D', text: 'Public Card Information Data Security Standard' }
-                            ],
-                            correct: 'A'
-                        },
-                        {
-                            question: 'What is the main advantage of tokenization in payments?',
-                            options: [
-                                { value: 'A', text: 'Faster processing speed' },
-                                { value: 'B', text: 'Enhanced security by replacing sensitive data with tokens' },
-                                { value: 'C', text: 'Lower transaction fees' },
-                                { value: 'D', text: 'Better user interface' }
-                            ],
-                            correct: 'B'
-                        },
-                        {
-                            question: 'Which payment model allows customers to pay for goods/services after delivery?',
-                            options: [
-                                { value: 'A', text: 'Prepaid' },
-                                { value: 'B', text: 'Postpaid' },
-                                { value: 'C', text: 'COD (Cash on Delivery)' },
-                                { value: 'D', text: 'Both B and C' }
-                            ],
-                            correct: 'D'
-                        },
-                        {
-                            question: 'What is the primary function of a merchant account?',
-                            options: [
-                                { value: 'A', text: 'To store customer passwords' },
-                                { value: 'B', text: 'To enable businesses to accept card payments' },
-                                { value: 'C', text: 'To create marketing campaigns' },
-                                { value: 'D', text: 'To manage employee schedules' }
-                            ],
-                            correct: 'B'
-                        },
-                        {
-                            question: 'Which of the following is a key feature of recurring payments?',
-                            options: [
-                                { value: 'A', text: 'One-time transaction processing' },
-                                { value: 'B', text: 'Automatic repeated billing at regular intervals' },
-                                { value: 'C', text: 'Manual payment approval for each transaction' },
-                                { value: 'D', text: 'Cash-only transactions' }
-                            ],
-                            correct: 'B'
-                        },
-                        {
-                            question: 'What does API stand for in the context of payment systems?',
-                            options: [
-                                { value: 'A', text: 'Automated Payment Interface' },
-                                { value: 'B', text: 'Application Programming Interface' },
-                                { value: 'C', text: 'Advanced Payment Integration' },
-                                { value: 'D', text: 'All-Purpose Internet Protocol' }
-                            ],
-                            correct: 'B'
-                        },
-                        {
-                            question: 'Which security measure helps prevent fraudulent transactions?',
-                            options: [
-                                { value: 'A', text: '3D Secure authentication' },
-                                { value: 'B', text: 'CVV verification' },
-                                { value: 'C', text: 'Address verification' },
-                                { value: 'D', text: 'All of the above' }
-                            ],
-                            correct: 'D'
-                        },
-                        {
-                            question: 'What is the main purpose of a payment processor?',
-                            options: [
-                                { value: 'A', text: 'To design websites' },
-                                { value: 'B', text: 'To handle the technical aspects of payment transactions' },
-                                { value: 'C', text: 'To provide customer support' },
-                                { value: 'D', text: 'To manage inventory' }
-                            ],
-                            correct: 'B'
-                        },
-                        {
-                            question: 'Which of the following is NOT a benefit of digital payments?',
-                            options: [
-                                { value: 'A', text: 'Convenience and speed' },
-                                { value: 'B', text: 'Better record keeping' },
-                                { value: 'C', text: 'Higher transaction costs' },
-                                { value: 'D', text: 'Enhanced security features' }
-                            ],
-                            correct: 'C'
-                        },
-                        {
-                            question: 'What does KYC stand for in financial services?',
-                            options: [
-                                { value: 'A', text: 'Know Your Customer' },
-                                { value: 'B', text: 'Keep Your Cash' },
-                                { value: 'C', text: 'Key Your Credentials' },
-                                { value: 'D', text: 'Know Your Currency' }
-                            ],
-                            correct: 'A'
-                        },
-                        {
-                            question: 'Which payment method is most commonly used for international transactions?',
-                            options: [
-                                { value: 'A', text: 'Cash' },
-                                { value: 'B', text: 'Bank transfers' },
-                                { value: 'C', text: 'Credit cards' },
-                                { value: 'D', text: 'Cryptocurrency' }
-                            ],
-                            correct: 'C'
-                        }
-                    ]
-                };
-
-                return questionSets[taskTitle] || questionSets['Fintech 101'];
-            }
-
-            setupEventListeners() {
-                document.getElementById('prevBtn').addEventListener('click', () => this.previousQuestion());
-                document.getElementById('nextBtn').addEventListener('click', () => this.nextQuestion());
-                document.getElementById('submitBtn').addEventListener('click', () => this.submitAssessment());
-            }
-
-            startTimer() {
-                this.startTime = new Date();
-                this.timerInterval = setInterval(() => {
-                    const now = new Date();
-                    const elapsed = Math.floor((now - this.startTime) / 1000);
-                    const minutes = Math.floor(elapsed / 60);
-                    const seconds = elapsed % 60;
-                    document.getElementById('timer').textContent = 
-                        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                }, 1000);
-            }
-
-            renderQuestion() {
-                const question = this.questions[this.currentQuestionIndex];
-                const container = document.getElementById('questionsContainer');
+                assessmentConfig = await response.json();
+                questions = assessmentConfig.questions || [];
+                passingScorePercentage = assessmentConfig.passingScore || 80;
+                userAnswers = new Array(questions.length).fill(null);
                 
-                // Clear previous questions
-                container.innerHTML = '';
+                console.log('Assessment config loaded:', assessmentConfig);
+                console.log('Questions loaded:', questions.length);
                 
-                // Create question card
-                const questionCard = document.createElement('div');
-                questionCard.className = 'question-card bg-white rounded-lg shadow-md p-6';
-                questionCard.innerHTML = `
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">
-                        Question ${this.currentQuestionIndex + 1}: ${question.question}
-                    </h3>
-                    <div class="space-y-3">
-                        ${question.options.map((option, index) => `
-                            <label class="block p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                                <input type="radio" name="question_${this.currentQuestionIndex}" value="${option.value}" 
-                                       class="sr-only" ${this.answers[`question_${this.currentQuestionIndex}`] === option.value ? 'checked' : ''}>
-                                <div class="flex items-center">
-                                    <div class="w-6 h-6 border-2 border-gray-300 rounded-full mr-3 flex items-center justify-center">
-                                        <div class="w-3 h-3 bg-blue-600 rounded-full hidden"></div>
-                                    </div>
-                                    <span class="text-gray-700">${option.text}</span>
-                                </div>
-                            </label>
-                        `).join('')}
-                    </div>
-                `;
+                // Update UI
+                document.getElementById('assessmentTitle').textContent = assessmentConfig.title || 'Assessment';
+                document.getElementById('assessmentDescription').textContent = assessmentConfig.description || '';
                 
-                container.appendChild(questionCard);
-                
-                // Add click handlers for options
-                questionCard.querySelectorAll('input[type="radio"]').forEach(radio => {
-                    radio.addEventListener('change', (e) => {
-                        this.answers[`question_${this.currentQuestionIndex}`] = e.target.value;
-                        this.updateProgress();
-                        this.updateOptionStyles(questionCard);
-                    });
-                });
-                
-                // Update option styles
-                this.updateOptionStyles(questionCard);
-                
-                // Update navigation
-                this.updateNavigation();
-                this.updateProgress();
-            }
-
-            updateOptionStyles(questionCard) {
-                questionCard.querySelectorAll('label').forEach(label => {
-                    const radio = label.querySelector('input[type="radio"]');
-                    const dot = label.querySelector('.w-3.h-3');
-                    
-                    if (radio.checked) {
-                        label.classList.add('option-selected');
-                        dot.classList.remove('hidden');
-                    } else {
-                        label.classList.remove('option-selected');
-                        dot.classList.add('hidden');
-                    }
-                });
-            }
-
-            updateNavigation() {
-                const prevBtn = document.getElementById('prevBtn');
-                const nextBtn = document.getElementById('nextBtn');
-                const currentQuestion = document.getElementById('currentQuestion');
-                
-                currentQuestion.textContent = this.currentQuestionIndex + 1;
-                
-                prevBtn.disabled = this.currentQuestionIndex === 0;
-                
-                if (this.currentQuestionIndex === this.questions.length - 1) {
-                    nextBtn.textContent = 'Review';
-                    nextBtn.onclick = () => this.showSubmitSection();
-                } else {
-                    nextBtn.textContent = 'Next';
-                    nextBtn.onclick = () => this.nextQuestion();
-                }
-            }
-
-            updateProgress() {
-                const answeredQuestions = Object.keys(this.answers).length;
-                const progress = Math.round((answeredQuestions / this.questions.length) * 100);
-                document.getElementById('progress').textContent = progress;
-            }
-
-            previousQuestion() {
-                if (this.currentQuestionIndex > 0) {
-                    this.currentQuestionIndex--;
-                    this.renderQuestion();
-                }
-            }
-
-            nextQuestion() {
-                if (this.currentQuestionIndex < this.questions.length - 1) {
-                    this.currentQuestionIndex++;
-                    this.renderQuestion();
-                }
-            }
-
-            showSubmitSection() {
-                document.getElementById('submitSection').classList.remove('hidden');
-                document.getElementById('questionsContainer').classList.add('hidden');
-                document.getElementById('prevBtn').parentElement.classList.add('hidden');
-            }
-
-            async submitAssessment() {
-                try {
-                    // Calculate score
-                    const score = this.calculateScore();
-                    
-                    // Send results to parent window
-                    if (window.parent && window.parent !== window) {
-                        window.parent.postMessage({
-                            type: 'ASSESSMENT_COMPLETED',
-                            data: {
-                                assessmentId: this.assessmentId,
-                                sessionId: this.sessionId,
-                                score: score.score,
-                                rawScore: score.rawScore,
-                                totalQuestions: score.totalQuestions,
-                                passed: score.passed,
-                                timeSpent: Math.floor((new Date() - this.startTime) / 1000)
-                            }
-                        }, '*');
-                    }
-                    
-                    // Show results
-                    this.showResults(score);
-                    
-                } catch (error) {
-                    console.error('Error submitting assessment:', error);
-                    this.showError('Failed to submit assessment');
-                }
-            }
-
-            calculateScore() {
-                let correctCount = 0;
-                
-                this.questions.forEach((question, index) => {
-                    const userAnswer = this.answers[`question_${index}`];
-                    if (userAnswer === question.correct) {
-                        correctCount++;
-                    }
-                });
-                
-                const score = Math.round((correctCount / this.questions.length) * 100);
-                const passed = score >= 80;
-                
-                return {
-                    score,
-                    rawScore: correctCount,
-                    totalQuestions: this.questions.length,
-                    passed
-                };
-            }
-
-            showResults(score) {
-                const resultsSection = document.getElementById('resultsSection');
-                const resultIcon = document.getElementById('resultIcon');
-                const resultTitle = document.getElementById('resultTitle');
-                const resultMessage = document.getElementById('resultMessage');
-                const scoreDisplay = document.getElementById('scoreDisplay');
-                const statusDisplay = document.getElementById('statusDisplay');
-                
-                if (score.passed) {
-                    resultIcon.textContent = '🎉';
-                    resultTitle.textContent = 'Congratulations! You Passed!';
-                    resultMessage.textContent = `You scored ${score.rawScore}/${score.totalQuestions} (${score.score}%) and passed the assessment.`;
-                    statusDisplay.textContent = 'Passed';
-                    statusDisplay.className = 'text-2xl font-bold text-green-600';
-                } else {
-                    resultIcon.textContent = '📚';
-                    resultTitle.textContent = 'Assessment Not Passed';
-                    resultMessage.textContent = `You scored ${score.rawScore}/${score.totalQuestions} (${score.score}%). Please review the material and try again.`;
-                    statusDisplay.textContent = 'Not Passed';
-                    statusDisplay.className = 'text-2xl font-bold text-red-600';
-                }
-                
-                scoreDisplay.textContent = `${score.score}%`;
-                resultsSection.classList.remove('hidden');
-                document.getElementById('submitSection').classList.add('hidden');
-                
-                // Clear timer
-                if (this.timerInterval) {
-                    clearInterval(this.timerInterval);
-                }
-            }
-
-            showError(message) {
-                alert('Error: ' + message);
+            } catch (error) {
+                console.error('Error loading assessment config:', error);
+                showError('Failed to load assessment. Please try again.');
             }
         }
 
-        // Initialize the assessment form
-        new CustomAssessmentForm();
+        // Show error message
+        function showError(message) {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('assessmentContent').classList.add('hidden');
+            document.getElementById('errorState').classList.remove('hidden');
+            document.getElementById('errorMessage').textContent = message;
+        }
+
+        // Initialize assessment
+        async function initializeAssessment() {
+            await loadAssessmentConfig();
+            if (questions.length === 0) {
+                showError('No questions found for this assessment.');
+                return;
+            }
+            
+            // Hide loading, show assessment
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('assessmentContent').classList.remove('hidden');
+            
+            startTimer();
+            loadQuestion();
+        }
+
+        function startTimer() {
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsedTime / 60).toString().padStart(2, '0');
+            const seconds = (elapsedTime % 60).toString().padStart(2, '0');
+            document.getElementById('timer').textContent = `${minutes}:${seconds}`;
+        }
+
+        function loadQuestion() {
+            const questionData = questions[currentQuestionIndex];
+            const assessmentQuestionsDiv = document.getElementById('assessmentQuestions');
+            
+            assessmentQuestionsDiv.innerHTML = `
+                <div class="question-card">
+                    <p class="text-sm text-gray-500 mb-2">Question ${currentQuestionIndex + 1} of ${questions.length}</p>
+                    <h3 class="text-lg font-semibold mb-4">${questionData.question}</h3>
+                    <div class="options">
+                        ${questionData.options.map((option, index) => `
+                            <label class="option-label">
+                                <input type="radio" name="question${currentQuestionIndex}" value="${option}">
+                                <span>${option}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            // Add event listeners for radio buttons
+            document.querySelectorAll(`input[name="question${currentQuestionIndex}"]`).forEach(input => {
+                input.addEventListener('change', (event) => {
+                    userAnswers[currentQuestionIndex] = event.target.value;
+                    updateProgressBar();
+                });
+            });
+
+            // Restore previous answer if exists
+            if (userAnswers[currentQuestionIndex]) {
+                const selectedInput = document.querySelector(`input[name="question${currentQuestionIndex}"][value="${userAnswers[currentQuestionIndex]}"]`);
+                if (selectedInput) {
+                    selectedInput.checked = true;
+                }
+            }
+
+            updateNavigationButtons();
+            updateProgressBar();
+        }
+
+        function updateNavigationButtons() {
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const submitBtn = document.getElementById('submitBtn');
+
+            prevBtn.classList.toggle('hidden', currentQuestionIndex === 0);
+            nextBtn.classList.toggle('hidden', currentQuestionIndex === questions.length - 1);
+            submitBtn.classList.toggle('hidden', currentQuestionIndex !== questions.length - 1);
+        }
+
+        function updateProgressBar() {
+            const answeredQuestions = userAnswers.filter(answer => answer !== null).length;
+            const progress = (answeredQuestions / questions.length) * 100;
+            document.getElementById('progressFill').style.width = `${progress}%`;
+            document.getElementById('progressText').textContent = `${Math.round(progress)}%`;
+        }
+
+        function calculateScore() {
+            let correctAnswers = 0;
+            questions.forEach((question, index) => {
+                if (userAnswers[index] === question.correctAnswer) {
+                    correctAnswers++;
+                }
+            });
+            const scorePercentage = Math.round((correctAnswers / questions.length) * 100);
+            const passed = scorePercentage >= passingScorePercentage;
+
+            return {
+                score: scorePercentage,
+                rawScore: correctAnswers,
+                totalQuestions: questions.length,
+                passed: passed,
+                timeSpent: Math.floor((Date.now() - startTime) / 1000) // in seconds
+            };
+        }
+
+        function showResult(scoreData) {
+            clearInterval(timerInterval);
+            document.getElementById('assessmentQuestions').classList.add('hidden');
+            document.getElementById('prevBtn').classList.add('hidden');
+            document.getElementById('nextBtn').classList.add('hidden');
+            document.getElementById('submitBtn').classList.add('hidden');
+
+            const resultDisplay = document.getElementById('resultDisplay');
+            resultDisplay.classList.remove('hidden');
+            document.getElementById('finalScore').textContent = `${scoreData.rawScore}/${scoreData.totalQuestions} (${scoreData.score}%)`;
+
+            if (scoreData.passed) {
+                resultDisplay.classList.add('bg-green-50', 'border-green-200');
+                document.getElementById('resultTitle').textContent = "Assessment Passed!";
+                document.getElementById('resultTitle').classList.add('text-green-600');
+                document.getElementById('resultMessage').textContent = "Congratulations! You have successfully completed the assessment with a passing score.";
+            } else {
+                resultDisplay.classList.add('bg-red-50', 'border-red-200');
+                document.getElementById('resultTitle').textContent = "Assessment Not Passed";
+                document.getElementById('resultTitle').classList.add('text-red-600');
+                document.getElementById('resultMessage').textContent = `Unfortunately, you did not achieve the required passing score of ${passingScorePercentage}%. Please review the material and try again.`;
+            }
+
+            // Send results to parent window
+            if (window.parent) {
+                window.parent.postMessage({
+                    type: 'ASSESSMENT_COMPLETED',
+                    data: scoreData
+                }, '*');
+            }
+        }
+
+        // Event Listeners
+        document.getElementById('prevBtn').addEventListener('click', () => {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex++;
+                loadQuestion();
+            }
+        });
+
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            if (currentQuestionIndex < questions.length - 1) {
+                currentQuestionIndex++;
+                loadQuestion();
+            }
+        });
+
+        document.getElementById('submitBtn').addEventListener('click', () => {
+            // Basic validation: ensure all questions are answered
+            if (userAnswers.includes(null)) {
+                alert('Please answer all questions before submitting.');
+                return;
+            }
+            const scoreData = calculateScore();
+            showResult(scoreData);
+        });
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initializeAssessment);
     </script>
 </body>
 </html>
