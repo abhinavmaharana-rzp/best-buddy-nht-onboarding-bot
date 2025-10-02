@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Assessment Form</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .question-card {
+            transition: all 0.3s ease;
+        }
+        .question-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .option-selected {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2" id="assessmentTitle">Assessment</h1>
+            <p class="text-gray-600" id="assessmentDescription">Please answer all questions to complete the assessment.</p>
+            <div class="mt-4 flex justify-between items-center">
+                <span class="text-sm text-gray-500">Progress: <span id="progress">0</span>%</span>
+                <span class="text-sm text-gray-500">Time: <span id="timer">00:00</span></span>
+            </div>
+        </div>
+
+        <!-- Questions Container -->
+        <div id="questionsContainer" class="space-y-6">
+            <!-- Questions will be dynamically loaded here -->
+        </div>
+
+        <!-- Navigation -->
+        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+            <div class="flex justify-between items-center">
+                <button id="prevBtn" class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    Previous
+                </button>
+                <span class="text-sm text-gray-500">
+                    Question <span id="currentQuestion">1</span> of <span id="totalQuestions">0</span>
+                </span>
+                <button id="nextBtn" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                    Next
+                </button>
+            </div>
+        </div>
+
+        <!-- Submit Section -->
+        <div id="submitSection" class="bg-white rounded-lg shadow-md p-6 mt-6 hidden">
+            <div class="text-center">
+                <h3 class="text-xl font-semibold text-gray-900 mb-4">Ready to Submit?</h3>
+                <p class="text-gray-600 mb-6">Please review your answers before submitting. You cannot change them after submission.</p>
+                <button id="submitBtn" class="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-lg font-semibold">
+                    Submit Assessment
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="bg-white rounded-lg shadow-md p-6 mt-6 hidden">
+            <div class="text-center">
+                <div id="resultIcon" class="text-6xl mb-4">🎉</div>
+                <h3 id="resultTitle" class="text-2xl font-bold mb-4">Assessment Complete!</h3>
+                <p id="resultMessage" class="text-gray-600 mb-6">Your results have been submitted successfully.</p>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="grid grid-cols-2 gap-4 text-center">
+                        <div>
+                            <div class="text-2xl font-bold text-blue-600" id="scoreDisplay">0%</div>
+                            <div class="text-sm text-gray-500">Your Score</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-green-600" id="statusDisplay">Passed</div>
+                            <div class="text-sm text-gray-500">Status</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class CustomAssessmentForm {
+            constructor() {
+                this.questions = [];
+                this.currentQuestionIndex = 0;
+                this.answers = {};
+                this.startTime = null;
+                this.timerInterval = null;
+                this.assessmentId = null;
+                this.sessionId = null;
+                
+                this.init();
+            }
+
+            async init() {
+                // Get assessment parameters from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                this.assessmentId = urlParams.get('assessmentId');
+                this.sessionId = urlParams.get('sessionId');
+                
+                // Load assessment data
+                await this.loadAssessmentData();
+                
+                // Setup event listeners
+                this.setupEventListeners();
+                
+                // Start timer
+                this.startTimer();
+                
+                // Render first question
+                this.renderQuestion();
+            }
+
+            async loadAssessmentData() {
+                try {
+                    // Load assessment configuration
+                    const response = await fetch(`/api/assessment/config/${this.assessmentId}`);
+                    const config = await response.json();
+                    
+                    // Load questions for this assessment
+                    this.questions = await this.loadQuestions(config.taskTitle);
+                    
+                    // Update UI
+                    document.getElementById('assessmentTitle').textContent = `${config.taskTitle} - Assessment`;
+                    document.getElementById('assessmentDescription').textContent = config.description || 'Please answer all questions to complete the assessment.';
+                    document.getElementById('totalQuestions').textContent = this.questions.length;
+                    
+                } catch (error) {
+                    console.error('Error loading assessment data:', error);
+                    this.showError('Failed to load assessment data');
+                }
+            }
+
+            async loadQuestions(taskTitle) {
+                // Define questions for different assessments
+                const questionSets = {
+                    'Fintech 101': [
+                        {
+                            question: 'What is the primary purpose of a payment gateway?',
+                            options: [
+                                { value: 'A', text: 'To store customer data securely' },
+                                { value: 'B', text: 'To process online payments between merchants and customers' },
+                                { value: 'C', text: 'To create mobile applications' },
+                                { value: 'D', text: 'To manage inventory systems' }
+                            ],
+                            correct: 'B'
+                        },
+                        {
+                            question: 'Which of the following is NOT a type of payment method?',
+                            options: [
+                                { value: 'A', text: 'Credit Card' },
+                                { value: 'B', text: 'Digital Wallet' },
+                                { value: 'C', text: 'Cryptocurrency' },
+                                { value: 'D', text: 'Email Address' }
+                            ],
+                            correct: 'D'
+                        },
+                        {
+                            question: 'What does PCI DSS stand for?',
+                            options: [
+                                { value: 'A', text: 'Payment Card Industry Data Security Standard' },
+                                { value: 'B', text: 'Personal Credit Information Data Security System' },
+                                { value: 'C', text: 'Payment Compliance and Data Security Standards' },
+                                { value: 'D', text: 'Public Card Information Data Security Standard' }
+                            ],
+                            correct: 'A'
+                        },
+                        {
+                            question: 'What is the main advantage of tokenization in payments?',
+                            options: [
+                                { value: 'A', text: 'Faster processing speed' },
+                                { value: 'B', text: 'Enhanced security by replacing sensitive data with tokens' },
+                                { value: 'C', text: 'Lower transaction fees' },
+                                { value: 'D', text: 'Better user interface' }
+                            ],
+                            correct: 'B'
+                        },
+                        {
+                            question: 'Which payment model allows customers to pay for goods/services after delivery?',
+                            options: [
+                                { value: 'A', text: 'Prepaid' },
+                                { value: 'B', text: 'Postpaid' },
+                                { value: 'C', text: 'COD (Cash on Delivery)' },
+                                { value: 'D', text: 'Both B and C' }
+                            ],
+                            correct: 'D'
+                        },
+                        {
+                            question: 'What is the primary function of a merchant account?',
+                            options: [
+                                { value: 'A', text: 'To store customer passwords' },
+                                { value: 'B', text: 'To enable businesses to accept card payments' },
+                                { value: 'C', text: 'To create marketing campaigns' },
+                                { value: 'D', text: 'To manage employee schedules' }
+                            ],
+                            correct: 'B'
+                        },
+                        {
+                            question: 'Which of the following is a key feature of recurring payments?',
+                            options: [
+                                { value: 'A', text: 'One-time transaction processing' },
+                                { value: 'B', text: 'Automatic repeated billing at regular intervals' },
+                                { value: 'C', text: 'Manual payment approval for each transaction' },
+                                { value: 'D', text: 'Cash-only transactions' }
+                            ],
+                            correct: 'B'
+                        },
+                        {
+                            question: 'What does API stand for in the context of payment systems?',
+                            options: [
+                                { value: 'A', text: 'Automated Payment Interface' },
+                                { value: 'B', text: 'Application Programming Interface' },
+                                { value: 'C', text: 'Advanced Payment Integration' },
+                                { value: 'D', text: 'All-Purpose Internet Protocol' }
+                            ],
+                            correct: 'B'
+                        },
+                        {
+                            question: 'Which security measure helps prevent fraudulent transactions?',
+                            options: [
+                                { value: 'A', text: '3D Secure authentication' },
+                                { value: 'B', text: 'CVV verification' },
+                                { value: 'C', text: 'Address verification' },
+                                { value: 'D', text: 'All of the above' }
+                            ],
+                            correct: 'D'
+                        },
+                        {
+                            question: 'What is the main purpose of a payment processor?',
+                            options: [
+                                { value: 'A', text: 'To design websites' },
+                                { value: 'B', text: 'To handle the technical aspects of payment transactions' },
+                                { value: 'C', text: 'To provide customer support' },
+                                { value: 'D', text: 'To manage inventory' }
+                            ],
+                            correct: 'B'
+                        },
+                        {
+                            question: 'Which of the following is NOT a benefit of digital payments?',
+                            options: [
+                                { value: 'A', text: 'Convenience and speed' },
+                                { value: 'B', text: 'Better record keeping' },
+                                { value: 'C', text: 'Higher transaction costs' },
+                                { value: 'D', text: 'Enhanced security features' }
+                            ],
+                            correct: 'C'
+                        },
+                        {
+                            question: 'What does KYC stand for in financial services?',
+                            options: [
+                                { value: 'A', text: 'Know Your Customer' },
+                                { value: 'B', text: 'Keep Your Cash' },
+                                { value: 'C', text: 'Key Your Credentials' },
+                                { value: 'D', text: 'Know Your Currency' }
+                            ],
+                            correct: 'A'
+                        },
+                        {
+                            question: 'Which payment method is most commonly used for international transactions?',
+                            options: [
+                                { value: 'A', text: 'Cash' },
+                                { value: 'B', text: 'Bank transfers' },
+                                { value: 'C', text: 'Credit cards' },
+                                { value: 'D', text: 'Cryptocurrency' }
+                            ],
+                            correct: 'C'
+                        }
+                    ]
+                };
+
+                return questionSets[taskTitle] || questionSets['Fintech 101'];
+            }
+
+            setupEventListeners() {
+                document.getElementById('prevBtn').addEventListener('click', () => this.previousQuestion());
+                document.getElementById('nextBtn').addEventListener('click', () => this.nextQuestion());
+                document.getElementById('submitBtn').addEventListener('click', () => this.submitAssessment());
+            }
+
+            startTimer() {
+                this.startTime = new Date();
+                this.timerInterval = setInterval(() => {
+                    const now = new Date();
+                    const elapsed = Math.floor((now - this.startTime) / 1000);
+                    const minutes = Math.floor(elapsed / 60);
+                    const seconds = elapsed % 60;
+                    document.getElementById('timer').textContent = 
+                        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }, 1000);
+            }
+
+            renderQuestion() {
+                const question = this.questions[this.currentQuestionIndex];
+                const container = document.getElementById('questionsContainer');
+                
+                // Clear previous questions
+                container.innerHTML = '';
+                
+                // Create question card
+                const questionCard = document.createElement('div');
+                questionCard.className = 'question-card bg-white rounded-lg shadow-md p-6';
+                questionCard.innerHTML = `
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                        Question ${this.currentQuestionIndex + 1}: ${question.question}
+                    </h3>
+                    <div class="space-y-3">
+                        ${question.options.map((option, index) => `
+                            <label class="block p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                                <input type="radio" name="question_${this.currentQuestionIndex}" value="${option.value}" 
+                                       class="sr-only" ${this.answers[`question_${this.currentQuestionIndex}`] === option.value ? 'checked' : ''}>
+                                <div class="flex items-center">
+                                    <div class="w-6 h-6 border-2 border-gray-300 rounded-full mr-3 flex items-center justify-center">
+                                        <div class="w-3 h-3 bg-blue-600 rounded-full hidden"></div>
+                                    </div>
+                                    <span class="text-gray-700">${option.text}</span>
+                                </div>
+                            </label>
+                        `).join('')}
+                    </div>
+                `;
+                
+                container.appendChild(questionCard);
+                
+                // Add click handlers for options
+                questionCard.querySelectorAll('input[type="radio"]').forEach(radio => {
+                    radio.addEventListener('change', (e) => {
+                        this.answers[`question_${this.currentQuestionIndex}`] = e.target.value;
+                        this.updateProgress();
+                        this.updateOptionStyles(questionCard);
+                    });
+                });
+                
+                // Update option styles
+                this.updateOptionStyles(questionCard);
+                
+                // Update navigation
+                this.updateNavigation();
+                this.updateProgress();
+            }
+
+            updateOptionStyles(questionCard) {
+                questionCard.querySelectorAll('label').forEach(label => {
+                    const radio = label.querySelector('input[type="radio"]');
+                    const dot = label.querySelector('.w-3.h-3');
+                    
+                    if (radio.checked) {
+                        label.classList.add('option-selected');
+                        dot.classList.remove('hidden');
+                    } else {
+                        label.classList.remove('option-selected');
+                        dot.classList.add('hidden');
+                    }
+                });
+            }
+
+            updateNavigation() {
+                const prevBtn = document.getElementById('prevBtn');
+                const nextBtn = document.getElementById('nextBtn');
+                const currentQuestion = document.getElementById('currentQuestion');
+                
+                currentQuestion.textContent = this.currentQuestionIndex + 1;
+                
+                prevBtn.disabled = this.currentQuestionIndex === 0;
+                
+                if (this.currentQuestionIndex === this.questions.length - 1) {
+                    nextBtn.textContent = 'Review';
+                    nextBtn.onclick = () => this.showSubmitSection();
+                } else {
+                    nextBtn.textContent = 'Next';
+                    nextBtn.onclick = () => this.nextQuestion();
+                }
+            }
+
+            updateProgress() {
+                const answeredQuestions = Object.keys(this.answers).length;
+                const progress = Math.round((answeredQuestions / this.questions.length) * 100);
+                document.getElementById('progress').textContent = progress;
+            }
+
+            previousQuestion() {
+                if (this.currentQuestionIndex > 0) {
+                    this.currentQuestionIndex--;
+                    this.renderQuestion();
+                }
+            }
+
+            nextQuestion() {
+                if (this.currentQuestionIndex < this.questions.length - 1) {
+                    this.currentQuestionIndex++;
+                    this.renderQuestion();
+                }
+            }
+
+            showSubmitSection() {
+                document.getElementById('submitSection').classList.remove('hidden');
+                document.getElementById('questionsContainer').classList.add('hidden');
+                document.getElementById('prevBtn').parentElement.classList.add('hidden');
+            }
+
+            async submitAssessment() {
+                try {
+                    // Calculate score
+                    const score = this.calculateScore();
+                    
+                    // Send results to parent window
+                    if (window.parent && window.parent !== window) {
+                        window.parent.postMessage({
+                            type: 'ASSESSMENT_COMPLETED',
+                            data: {
+                                assessmentId: this.assessmentId,
+                                sessionId: this.sessionId,
+                                score: score.score,
+                                rawScore: score.rawScore,
+                                totalQuestions: score.totalQuestions,
+                                passed: score.passed,
+                                timeSpent: Math.floor((new Date() - this.startTime) / 1000)
+                            }
+                        }, '*');
+                    }
+                    
+                    // Show results
+                    this.showResults(score);
+                    
+                } catch (error) {
+                    console.error('Error submitting assessment:', error);
+                    this.showError('Failed to submit assessment');
+                }
+            }
+
+            calculateScore() {
+                let correctCount = 0;
+                
+                this.questions.forEach((question, index) => {
+                    const userAnswer = this.answers[`question_${index}`];
+                    if (userAnswer === question.correct) {
+                        correctCount++;
+                    }
+                });
+                
+                const score = Math.round((correctCount / this.questions.length) * 100);
+                const passed = score >= 80;
+                
+                return {
+                    score,
+                    rawScore: correctCount,
+                    totalQuestions: this.questions.length,
+                    passed
+                };
+            }
+
+            showResults(score) {
+                const resultsSection = document.getElementById('resultsSection');
+                const resultIcon = document.getElementById('resultIcon');
+                const resultTitle = document.getElementById('resultTitle');
+                const resultMessage = document.getElementById('resultMessage');
+                const scoreDisplay = document.getElementById('scoreDisplay');
+                const statusDisplay = document.getElementById('statusDisplay');
+                
+                if (score.passed) {
+                    resultIcon.textContent = '🎉';
+                    resultTitle.textContent = 'Congratulations! You Passed!';
+                    resultMessage.textContent = `You scored ${score.rawScore}/${score.totalQuestions} (${score.score}%) and passed the assessment.`;
+                    statusDisplay.textContent = 'Passed';
+                    statusDisplay.className = 'text-2xl font-bold text-green-600';
+                } else {
+                    resultIcon.textContent = '📚';
+                    resultTitle.textContent = 'Assessment Not Passed';
+                    resultMessage.textContent = `You scored ${score.rawScore}/${score.totalQuestions} (${score.score}%). Please review the material and try again.`;
+                    statusDisplay.textContent = 'Not Passed';
+                    statusDisplay.className = 'text-2xl font-bold text-red-600';
+                }
+                
+                scoreDisplay.textContent = `${score.score}%`;
+                resultsSection.classList.remove('hidden');
+                document.getElementById('submitSection').classList.add('hidden');
+                
+                // Clear timer
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                }
+            }
+
+            showError(message) {
+                alert('Error: ' + message);
+            }
+        }
+
+        // Initialize the assessment form
+        new CustomAssessmentForm();
+    </script>
+</body>
+</html>
