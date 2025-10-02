@@ -114,8 +114,8 @@ class SchedulerService {
       const reportPromises = managers.map(async (manager) => {
         try {
           const report = await this.reportingService.generateManagerReport(manager.id, new Date());
-          await this.reportingService.sendManagerReport(manager.id, report);
-          console.log(`Manager report sent to ${manager.name}`);
+          await this.reportingService.sendManagerReport(manager.slackId, report, manager.email);
+          console.log(`Manager report sent to ${manager.name} (${manager.email})`);
         } catch (error) {
           console.error(`Error sending report to manager ${manager.name}:`, error);
         }
@@ -196,10 +196,26 @@ class SchedulerService {
    */
   async getManagers() {
     // In a real implementation, you'd query a managers table
-    // For now, return a mock list
+    // For now, return a mock list with Abhinav as the primary manager
     return [
-      { id: "U1234567890", name: "John Manager", email: "john.manager@razorpay.com" },
-      { id: "U0987654321", name: "Jane Manager", email: "jane.manager@razorpay.com" },
+      { 
+        id: "U_ABHINAV_MAHARANA", 
+        name: "Abhinav Maharana", 
+        email: "abhinav.maharana@razorpay.com",
+        slackId: "U_ABHINAV_MAHARANA" // Slack user ID for DM
+      },
+      { 
+        id: "U1234567890", 
+        name: "John Manager", 
+        email: "john.manager@razorpay.com",
+        slackId: "U1234567890"
+      },
+      { 
+        id: "U0987654321", 
+        name: "Jane Manager", 
+        email: "jane.manager@razorpay.com",
+        slackId: "U0987654321"
+      },
     ];
   }
 

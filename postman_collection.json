@@ -1,0 +1,466 @@
+{
+  "info": {
+    "name": "Razorpay Onboarding Bot API",
+    "description": "Complete API collection for testing the Razorpay Employee Onboarding Slack Bot",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "your_jwt_token_here",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "U1234567890",
+      "type": "string"
+    },
+    {
+      "key": "assessment_id",
+      "value": "assessment_id_here",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/verify",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "verify"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Assessment APIs",
+      "item": [
+        {
+          "name": "Get Assessment Config",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/assessment/config/{{assessment_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "assessment", "config", "{{assessment_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Start Assessment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{user_id}}\",\n  \"taskTitle\": \"Fintech 101\",\n  \"weekIndex\": 0,\n  \"dayIndex\": 1,\n  \"taskIndex\": 0,\n  \"googleFormUrl\": \"https://forms.gle/test123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/assessment/start",
+              "host": ["{{base_url}}"],
+              "path": ["api", "assessment", "start"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Complete Assessment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assessmentId\": \"{{assessment_id}}\",\n  \"userId\": \"{{user_id}}\",\n  \"formUrl\": \"https://forms.gle/test123\",\n  \"timeSpent\": 1200,\n  \"violations\": 2,\n  \"attemptCount\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/assessment/complete",
+              "host": ["{{base_url}}"],
+              "path": ["api", "assessment", "complete"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Assessment Results",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/assessment/results/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "assessment", "results", "{{user_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Proctoring Sessions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/proctoring/sessions/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "proctoring", "sessions", "{{user_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Screen Recording",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "recording",
+                  "type": "file",
+                  "src": "path/to/recording.webm"
+                },
+                {
+                  "key": "sessionId",
+                  "value": "session_123",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/proctoring/upload",
+              "host": ["{{base_url}}"],
+              "path": ["api", "proctoring", "upload"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics APIs",
+      "item": [
+        {
+          "name": "Get Overview Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/overview",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "overview"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Progress Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/progress",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "progress"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Assessment Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/assessments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "assessments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Gamification Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/analytics/gamification",
+              "host": ["{{base_url}}"],
+              "path": ["api", "analytics", "gamification"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Dashboard APIs",
+      "item": [
+        {
+          "name": "Get Dashboard Overview",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/dashboard/overview",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard", "overview"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/dashboard/users",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard", "users"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Approval Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/dashboard/approvals",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard", "approvals"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Trigger Onboarding",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{user_id}}\",\n  \"userName\": \"John Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"function\": \"Engineering\",\n  \"subFunction\": \"Backend\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/dashboard/trigger-onboarding",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard", "trigger-onboarding"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User Lookup APIs",
+      "item": [
+        {
+          "name": "Lookup User by Email",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/user-lookup/email?email=john.doe@example.com",
+              "host": ["{{base_url}}"],
+              "path": ["user-lookup", "email"],
+              "query": [
+                {
+                  "key": "email",
+                  "value": "john.doe@example.com"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Task Approval",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approvalId\": \"approval_123\",\n  \"status\": \"approved\",\n  \"reviewedBy\": \"manager_123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/user-lookup/update-approval",
+              "host": ["{{base_url}}"],
+              "path": ["user-lookup", "update-approval"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Webhook Endpoints",
+      "item": [
+        {
+          "name": "Assessment Completion Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assessmentId\": \"{{assessment_id}}\",\n  \"userId\": \"{{user_id}}\",\n  \"score\": 85,\n  \"passed\": true,\n  \"completedAt\": \"2024-01-15T10:30:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/assessment/webhook/completion",
+              "host": ["{{base_url}}"],
+              "path": ["api", "assessment", "webhook", "completion"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "API Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

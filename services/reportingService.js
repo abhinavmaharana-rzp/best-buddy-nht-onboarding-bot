@@ -15,6 +15,7 @@ const ChecklistItem = require("../models/checklistItem");
 const ManagerReport = require("../models/managerReport");
 const UserProgress = require("../models/userProgress");
 const { App } = require("@slack/bolt");
+const nodemailer = require("nodemailer");
 
 /**
  * ReportingService Class
@@ -30,6 +31,22 @@ class ReportingService {
    */
   constructor(slackApp) {
     this.slackApp = slackApp;
+    this.emailTransporter = this.createEmailTransporter();
+  }
+
+  /**
+   * Create email transporter for sending reports
+   * @returns {Object} Nodemailer transporter
+   */
+  createEmailTransporter() {
+    // Configure email transporter (using Gmail SMTP as example)
+    return nodemailer.createTransporter({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER || 'your-email@gmail.com',
+        pass: process.env.EMAIL_PASS || 'your-app-password'
+      }
+    });
   }
 
   /**
@@ -445,30 +462,54 @@ class ReportingService {
   }
 
   /**
-   * Send manager report via Slack DM
+   * Send manager report via Slack DM and Email
    * @param {string} managerId - Manager's Slack user ID
    * @param {Object} report - Report data
+   * @param {string} managerEmail - Manager's email address
    * @returns {boolean} Success status
    */
-  async sendManagerReport(managerId, report) {
+  async sendManagerReport(managerId, report, managerEmail = null) {
     try {
-      const blocks = this.formatReportAsSlackBlocks(report);
-      
-      await this.slackApp.client.chat.postMessage({
-        token: process.env.SLACK_BOT_TOKEN,
-        channel: managerId,
-        text: `📊 Weekly Onboarding Report - ${report.reportDate.toLocaleDateString()}`,
-        blocks,
-      });
+      let slackSuccess = false;
+      let emailSuccess = false;
 
-      // Update report status
+      // Send Slack DM
+      try {
+        const blocks = this.formatReportAsSlackBlocks(report);
+        
+        await this.slackApp.client.chat.postMessage({
+          token: process.env.SLACK_BOT_TOKEN,
+          channel: managerId,
+          text: `📊 Weekly Onboarding Report - ${report.reportDate.toLocaleDateString()}`,
+          blocks,
+        });
+
+        slackSuccess = true;
+        console.log(`Slack report sent successfully to ${managerId}`);
+      } catch (slackError) {
+        console.error("Error sending Slack report:", slackError);
+      }
+
+      // Send Email (if email is provided)
+      if (managerEmail) {
+        try {
+          await this.sendEmailReport(managerEmail, report);
+          emailSuccess = true;
+          console.log(`Email report sent successfully to ${managerEmail}`);
+        } catch (emailError) {
+          console.error("Error sending email report:", emailError);
+        }
+      }
+
+      // Update report status based on success
+      const overallSuccess = slackSuccess || emailSuccess;
       await ManagerReport.findByIdAndUpdate(report._id, {
-        status: "sent",
+        status: overallSuccess ? "sent" : "failed",
         sentAt: new Date(),
       });
 
-      console.log(`Manager report sent successfully to ${managerId}`);
-      return true;
+      console.log(`Manager report delivery completed. Slack: ${slackSuccess}, Email: ${emailSuccess}`);
+      return overallSuccess;
     } catch (error) {
       console.error("Error sending manager report:", error);
       
@@ -479,6 +520,167 @@ class ReportingService {
       
       return false;
     }
+  }
+
+  /**
+   * Send email report to manager
+   * @param {string} email - Manager's email address
+   * @param {Object} report - Report data
+   * @returns {Promise<boolean>} Success status
+   */
+  async sendEmailReport(email, report) {
+    try {
+      const { summary, newHires, recommendations } = report;
+      
+      const htmlContent = this.formatReportAsHTML(report);
+      
+      const mailOptions = {
+        from: process.env.EMAIL_USER || 'noreply@razorpay.com',
+        to: email,
+        subject: `📊 Weekly Onboarding Report - ${report.reportDate.toLocaleDateString()}`,
+        html: htmlContent,
+        text: this.formatReportAsText(report)
+      };
+
+      await this.emailTransporter.sendMail(mailOptions);
+      console.log(`Email report sent to ${email}`);
+      return true;
+    } catch (error) {
+      console.error("Error sending email report:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Format report data as HTML email
+   * @param {Object} report - Report data
+   * @returns {string} HTML content
+   */
+  formatReportAsHTML(report) {
+    const { summary, newHires, recommendations } = report;
+    
+    let html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { background-color: #4CAF50; color: white; padding: 20px; text-align: center; }
+          .summary { background-color: #f9f9f9; padding: 15px; margin: 10px 0; border-radius: 5px; }
+          .new-hire { border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; }
+          .recommendations { background-color: #e7f3ff; padding: 15px; margin: 10px 0; border-radius: 5px; }
+          .metric { display: inline-block; margin: 10px 20px 10px 0; }
+          .metric-value { font-size: 24px; font-weight: bold; color: #4CAF50; }
+          .metric-label { font-size: 14px; color: #666; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>📊 Weekly Onboarding Report</h1>
+          <p>${report.reportDate.toLocaleDateString()}</p>
+        </div>
+        
+        <div class="summary">
+          <h2>📈 Summary</h2>
+          <div class="metric">
+            <div class="metric-value">${summary.totalNewHires || 0}</div>
+            <div class="metric-label">Total New Hires</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value">${summary.averageProgress || 0}%</div>
+            <div class="metric-label">Average Progress</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value">${summary.assessmentsPassed || 0}</div>
+            <div class="metric-label">Assessments Passed</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value">${summary.assessmentsFailed || 0}</div>
+            <div class="metric-label">Assessments Failed</div>
+          </div>
+        </div>
+    `;
+
+    // Add new hires details
+    if (newHires && newHires.length > 0) {
+      html += `<h2>👥 New Hires Progress</h2>`;
+      newHires.forEach(hire => {
+        html += `
+          <div class="new-hire">
+            <h3>${hire.userName} (${hire.email})</h3>
+            <p><strong>Function:</strong> ${hire.function} - ${hire.subFunction}</p>
+            <p><strong>Progress:</strong> ${hire.progress.overallPercentage || 0}% (${hire.progress.tasksCompleted || 0}/${hire.progress.totalTasks || 0} tasks)</p>
+            <p><strong>Assessments:</strong> ${hire.progress.assessmentsCompleted || 0}/${hire.progress.totalAssessments || 0} completed</p>
+            <p><strong>Average Score:</strong> ${hire.progress.averageScore || 0}%</p>
+        `;
+        
+        if (hire.assessments && hire.assessments.length > 0) {
+          html += `<p><strong>Recent Assessments:</strong></p><ul>`;
+          hire.assessments.forEach(assessment => {
+            html += `<li>${assessment.taskTitle}: ${assessment.score}% (${assessment.passed ? 'Passed' : 'Failed'})</li>`;
+          });
+          html += `</ul>`;
+        }
+        
+        html += `</div>`;
+      });
+    }
+
+    // Add recommendations
+    if (recommendations && recommendations.length > 0) {
+      html += `<div class="recommendations"><h2>💡 Recommendations</h2><ul>`;
+      recommendations.forEach(rec => {
+        html += `<li><strong>${rec.type}:</strong> ${rec.description} (Priority: ${rec.priority})</li>`;
+      });
+      html += `</ul></div>`;
+    }
+
+    html += `
+        <div style="margin-top: 30px; padding: 15px; background-color: #f0f0f0; border-radius: 5px;">
+          <p><em>This report was automatically generated by the Razorpay Onboarding Bot.</em></p>
+          <p><em>For questions or support, please contact the HR team.</em></p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return html;
+  }
+
+  /**
+   * Format report data as plain text
+   * @param {Object} report - Report data
+   * @returns {string} Plain text content
+   */
+  formatReportAsText(report) {
+    const { summary, newHires, recommendations } = report;
+    
+    let text = `📊 Weekly Onboarding Report - ${report.reportDate.toLocaleDateString()}\n\n`;
+    
+    text += `📈 Summary:\n`;
+    text += `- Total New Hires: ${summary.totalNewHires || 0}\n`;
+    text += `- Average Progress: ${summary.averageProgress || 0}%\n`;
+    text += `- Assessments Passed: ${summary.assessmentsPassed || 0}\n`;
+    text += `- Assessments Failed: ${summary.assessmentsFailed || 0}\n\n`;
+    
+    if (newHires && newHires.length > 0) {
+      text += `👥 New Hires Progress:\n`;
+      newHires.forEach(hire => {
+        text += `- ${hire.userName} (${hire.email}): ${hire.progress.overallPercentage || 0}% progress\n`;
+      });
+      text += `\n`;
+    }
+    
+    if (recommendations && recommendations.length > 0) {
+      text += `💡 Recommendations:\n`;
+      recommendations.forEach(rec => {
+        text += `- ${rec.type}: ${rec.description} (Priority: ${rec.priority})\n`;
+      });
+    }
+    
+    text += `\nThis report was automatically generated by the Razorpay Onboarding Bot.`;
+    
+    return text;
   }
 
   /**
