@@ -9,6 +9,7 @@ const TaskStatus = require("../models/taskStatus");
 const TaskApproval = require("../models/taskApproval");
 const { text } = require("body-parser");
 const { getBaseUrl, getAssessmentUrl } = require("../utils/config");
+const assessmentService = require("../services/assessmentService");
 
 /**
  * @swagger
@@ -687,37 +688,26 @@ module.exports = (boltApp) => {
     try {
       console.log(`🚀 Starting proctored assessment for user ${userId}, task: ${task.title}`);
       
-      // Start assessment via API
-      const apiUrl = `${getBaseUrl()}/api/assessment/start`;
-      console.log(`📡 Making API call to: ${apiUrl}`);
-      
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          taskTitle: task.title,
-          weekIndex,
-          dayIndex,
-          taskIndex,
-        }),
+      // Start assessment directly via service (no HTTP call)
+      const assessmentData = await assessmentService.startAssessment({
+        userId,
+        taskTitle: task.title,
+        weekIndex,
+        dayIndex,
+        taskIndex,
+        environment: {
+          userAgent: "Slack Bot",
+          screenResolution: "Unknown",
+          browser: "Slack",
+          os: "Unknown",
+          ipAddress: "Unknown",
+          location: "Unknown",
+          timezone: "Unknown",
+        }
       });
 
-      console.log(`📊 API Response status: ${response.status} ${response.statusText}`);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`❌ API Error Response: ${errorText}`);
-        throw new Error(`Failed to start assessment: ${response.status} - ${errorText}`);
-      }
-
-      const assessmentData = await response.json();
       console.log(`✅ Assessment created successfully:`, assessmentData);
-      
-      const assessmentUrl = getAssessmentUrl(assessmentData.assessmentId, assessmentData.sessionId);
-      console.log(`🔗 Assessment URL: ${assessmentUrl}`);
+      console.log(`🔗 Assessment URL: ${assessmentData.assessmentUrl}`);
 
       // Send assessment message to user
       await client.chat.postMessage({
@@ -756,7 +746,7 @@ module.exports = (boltApp) => {
                   text: "Start Proctored Assessment",
                   emoji: true,
                 },
-                url: assessmentUrl,
+                url: assessmentData.assessmentUrl,
                 style: "primary",
               },
             ],
