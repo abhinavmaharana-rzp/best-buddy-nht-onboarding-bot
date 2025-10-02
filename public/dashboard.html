@@ -162,6 +162,13 @@
             <span class="mx-3">Approvals</span>
           </a>
           <a
+            href="#assessments"
+            class="flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+          >
+            <i class="fas fa-chart-line w-5"></i>
+            <span class="mx-3">Assessment Scores</span>
+          </a>
+          <a
             href="#trigger"
             class="flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600"
           >
@@ -267,6 +274,98 @@
                 id="usersTableBody"
               >
                 <!-- User rows will be inserted here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Assessment Scores Section -->
+        <div id="assessments" class="mb-8">
+          <h2 class="text-2xl font-bold mb-4">Assessment Scores</h2>
+          
+          <!-- Assessment Stats -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <div class="bg-white rounded-lg shadow p-6">
+              <div class="flex items-center">
+                <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                  <i class="fas fa-clipboard-check"></i>
+                </div>
+                <div class="ml-4">
+                  <p class="text-gray-500">Total Assessments</p>
+                  <p class="text-2xl font-semibold" id="totalAssessments">-</p>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+              <div class="flex items-center">
+                <div class="p-3 rounded-full bg-green-100 text-green-600">
+                  <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="ml-4">
+                  <p class="text-gray-500">Passed</p>
+                  <p class="text-2xl font-semibold" id="passedAssessments">-</p>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+              <div class="flex items-center">
+                <div class="p-3 rounded-full bg-red-100 text-red-600">
+                  <i class="fas fa-times-circle"></i>
+                </div>
+                <div class="ml-4">
+                  <p class="text-gray-500">Failed</p>
+                  <p class="text-2xl font-semibold" id="failedAssessments">-</p>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+              <div class="flex items-center">
+                <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                  <i class="fas fa-percentage"></i>
+                </div>
+                <div class="ml-4">
+                  <p class="text-gray-500">Avg Score</p>
+                  <p class="text-2xl font-semibold" id="averageScore">-</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Assessment Results Table -->
+          <div class="bg-white rounded-lg shadow overflow-x-auto">
+            <div class="px-6 py-4 border-b border-gray-200">
+              <div class="flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-900">Assessment Results</h3>
+                <div class="flex space-x-2">
+                  <select id="assessmentUserFilter" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
+                    <option value="">All Users</option>
+                  </select>
+                  <select id="assessmentTypeFilter" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
+                    <option value="">All Assessments</option>
+                    <option value="Fintech 101">Fintech 101</option>
+                    <option value="Core Payments">Core Payments</option>
+                    <option value="Core Payments and Platform">Core Payments and Platform</option>
+                  </select>
+                  <button id="refreshAssessments" class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                  </button>
+                </div>
+              </div>
+            </div>
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assessment</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attempts</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="assessmentTableBody" class="bg-white divide-y divide-gray-200">
+                <!-- Assessment data will be loaded here -->
               </tbody>
             </table>
           </div>
@@ -916,12 +1015,124 @@
         showError("You are offline. Some features may be unavailable.");
       });
 
+      // Assessment Scores Functions
+      async function fetchAssessments() {
+        showLoading();
+        try {
+          const response = await fetchWithAuth("/api/admin/assessments");
+          if (!response) return;
+
+          const assessments = await response.json();
+          debugLog("Assessment data:", assessments);
+          
+          updateAssessmentStats(assessments);
+          renderAssessmentTable(assessments);
+          populateAssessmentFilters(assessments);
+          
+          showToast("Assessment data updated successfully", "success", 2000);
+        } catch (error) {
+          debugLog("Error fetching assessments:", error);
+          showError("Failed to load assessment data");
+        } finally {
+          hideLoading();
+        }
+      }
+
+      function updateAssessmentStats(assessments) {
+        const total = assessments.length;
+        const passed = assessments.filter(a => a.status === 'completed').length;
+        const failed = assessments.filter(a => a.status === 'failed').length;
+        const averageScore = assessments.length > 0 
+          ? Math.round(assessments.reduce((sum, a) => sum + (a.score || 0), 0) / assessments.length)
+          : 0;
+
+        document.getElementById('totalAssessments').textContent = total;
+        document.getElementById('passedAssessments').textContent = passed;
+        document.getElementById('failedAssessments').textContent = failed;
+        document.getElementById('averageScore').textContent = averageScore + '%';
+      }
+
+      function renderAssessmentTable(assessments) {
+        const tbody = document.getElementById('assessmentTableBody');
+        tbody.innerHTML = '';
+
+        assessments.forEach(assessment => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+              ${assessment.userId}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              ${assessment.taskTitle}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                assessment.score >= 80 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              }">
+                ${assessment.score || 0}%
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                assessment.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                assessment.status === 'failed' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+              }">
+                ${assessment.status}
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              ${assessment.attemptCount || 1}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              ${new Date(assessment.completedAt || assessment.startedAt).toLocaleDateString()}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+              <button onclick="viewAssessmentDetails('${assessment._id}')" class="text-blue-600 hover:text-blue-900 mr-2">
+                <i class="fas fa-eye"></i> View
+              </button>
+              <button onclick="exportAssessment('${assessment._id}')" class="text-green-600 hover:text-green-900">
+                <i class="fas fa-download"></i> Export
+              </button>
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+
+      function populateAssessmentFilters(assessments) {
+        // Populate user filter
+        const users = [...new Set(assessments.map(a => a.userId))];
+        const userFilter = document.getElementById('assessmentUserFilter');
+        userFilter.innerHTML = '<option value="">All Users</option>';
+        users.forEach(userId => {
+          const option = document.createElement('option');
+          option.value = userId;
+          option.textContent = userId;
+          userFilter.appendChild(option);
+        });
+      }
+
+      function viewAssessmentDetails(assessmentId) {
+        // Open detailed view modal
+        showToast(`Viewing details for assessment: ${assessmentId}`, "info", 3000);
+        // You can implement a detailed modal here
+      }
+
+      function exportAssessment(assessmentId) {
+        // Export assessment data
+        showToast(`Exporting assessment: ${assessmentId}`, "info", 3000);
+        // You can implement CSV export here
+      }
+
+      // Add event listeners for assessment filters
+      document.getElementById('refreshAssessments').addEventListener('click', fetchAssessments);
+
       // Update initialization
       async function initialize() {
         showLoading();
         try {
           await checkAuth();
-          await Promise.all([fetchOverview(), fetchUsers(), fetchApprovals()]);
+          await Promise.all([fetchOverview(), fetchUsers(), fetchApprovals(), fetchAssessments()]);
         } catch (error) {
           debugLog("Initialization error:", error);
           showError("Failed to initialize dashboard");

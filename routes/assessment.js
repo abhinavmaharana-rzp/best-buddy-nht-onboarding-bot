@@ -51,6 +51,85 @@ router.get("/data", (req, res) => {
 
 /**
  * @swagger
+ * /api/admin/assessments:
+ *   get:
+ *     summary: Get all assessment results for admin dashboard
+ *     tags: [Assessment]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Assessment results retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                   userId:
+ *                     type: string
+ *                   taskTitle:
+ *                     type: string
+ *                   score:
+ *                     type: number
+ *                   status:
+ *                     type: string
+ *                   attemptCount:
+ *                     type: number
+ *                   completedAt:
+ *                     type: string
+ *                   startedAt:
+ *                     type: string
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/admin/assessments", async (req, res) => {
+  try {
+    console.log("Admin requesting assessment data");
+    
+    // Get all assessments with user and task details
+    const assessments = await Assessment.find({})
+      .populate('userId', 'name email')
+      .sort({ completedAt: -1, startedAt: -1 })
+      .lean();
+
+    // Format the response
+    const formattedAssessments = assessments.map(assessment => ({
+      _id: assessment._id,
+      userId: assessment.userId?.name || assessment.userId || 'Unknown User',
+      userEmail: assessment.userId?.email || '',
+      taskTitle: assessment.taskTitle,
+      score: assessment.score || 0,
+      rawScore: assessment.rawScore || 0,
+      totalQuestions: assessment.totalQuestions || 0,
+      status: assessment.status,
+      attemptCount: assessment.attemptCount || 1,
+      completedAt: assessment.completedAt,
+      startedAt: assessment.startedAt,
+      timeSpent: assessment.timeSpent,
+      violations: assessment.violations || 0,
+      reason: assessment.reason
+    }));
+
+    console.log(`Retrieved ${formattedAssessments.length} assessments for admin`);
+    res.json(formattedAssessments);
+    
+  } catch (error) {
+    console.error("Error getting admin assessment data:", error);
+    res.status(500).json({ 
+      error: "Internal server error",
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * @swagger
  * /api/assessment/calculate-score:
  *   post:
  *     summary: Calculate score from Google Forms submission
