@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Question Bank Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .tab-active {
+            border-bottom: 2px solid #3b82f6;
+            color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold text-gray-900">📚 Question Bank Management</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="showImportModal()" class="text-blue-600 hover:text-blue-700 px-4 py-2 rounded-lg border border-blue-600">
+                        📥 Import Questions
+                    </button>
+                    <button onclick="showAddModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                        ➕ Add Question
+                    </button>
+                    <a href="/dashboard" class="text-gray-600 hover:text-gray-900">← Back to Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Tabs -->
+        <div class="border-b border-gray-200 mb-6">
+            <nav class="-mb-px flex space-x-8">
+                <button onclick="switchTab('all')" id="tab-all" class="tab-active py-4 px-1 border-b-2 font-medium text-sm">
+                    All Questions
+                </button>
+                <button onclick="switchTab('stats')" id="tab-stats" class="py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700">
+                    Statistics
+                </button>
+            </nav>
+        </div>
+
+        <!-- Questions View -->
+        <div id="view-all">
+            <!-- Filters -->
+            <div class="bg-white rounded-lg shadow p-6 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                        <input type="text" id="searchInput" placeholder="Search questions..." 
+                               class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Assessment</label>
+                        <select id="assessmentFilter" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">All Assessments</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Difficulty</label>
+                        <select id="difficultyFilter" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">All</option>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                        <select id="statusFilter" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">All</option>
+                            <option value="active">Active</option>
+                            <option value="draft">Draft</option>
+                            <option value="archived">Archived</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="filterQuestions()" class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg">
+                            🔍 Filter
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Questions List -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold">Questions (<span id="questionCount">0</span>)</h2>
+                        <button onclick="exportQuestions()" class="text-sm text-blue-600 hover:text-blue-700">
+                            📤 Export All
+                        </button>
+                    </div>
+                    <div id="questionsList" class="space-y-4">
+                        <!-- Questions will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics View -->
+        <div id="view-stats" class="hidden">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-sm font-medium text-gray-600 mb-2">Total Questions</h3>
+                    <p id="stat-total" class="text-3xl font-bold text-gray-900">0</p>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-sm font-medium text-gray-600 mb-2">Active Questions</h3>
+                    <p id="stat-active" class="text-3xl font-bold text-green-600">0</p>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-sm font-medium text-gray-600 mb-2">Avg Success Rate</h3>
+                    <p id="stat-success" class="text-3xl font-bold text-blue-600">0%</p>
+                </div>
+            </div>
+
+            <!-- By Assessment -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold mb-4">Questions by Assessment</h2>
+                <div id="assessmentStats" class="space-y-4">
+                    <!-- Stats will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div id="questionModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
+        <div class="min-h-screen px-4 py-8 flex items-center justify-center">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+                <div class="p-6 border-b">
+                    <div class="flex justify-between items-center">
+                        <h2 id="modalTitle" class="text-xl font-bold">Add Question</h2>
+                        <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <form id="questionForm" class="p-6 space-y-4">
+                    <input type="hidden" id="questionId">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Question *</label>
+                        <textarea id="questionText" required rows="3" 
+                                  class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Assessment *</label>
+                            <select id="questionAssessment" required 
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="">Select Assessment</option>
+                                <option value="Fintech 101">Fintech 101</option>
+                                <option value="Core Payments">Core Payments</option>
+                                <option value="Core Payments and Platform">Core Payments and Platform</option>
+                                <option value="Merchant and Admin Dashboard">Merchant and Admin Dashboard</option>
+                                <option value="Recurring">Recurring</option>
+                                <option value="Products 2.0">Products 2.0</option>
+                                <option value="Cross Border Payments">Cross Border Payments</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Difficulty *</label>
+                            <select id="questionDifficulty" required 
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="easy">Easy</option>
+                                <option value="medium">Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Options * (One per line)</label>
+                        <textarea id="questionOptions" required rows="4" placeholder="Option 1&#10;Option 2&#10;Option 3&#10;Option 4"
+                                  class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Correct Answer *</label>
+                        <input type="text" id="questionCorrect" required 
+                               class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Explanation</label>
+                        <textarea id="questionExplanation" rows="3" 
+                                  class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Topic</label>
+                            <input type="text" id="questionTopic" 
+                                   class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Tags (comma-separated)</label>
+                            <input type="text" id="questionTags" placeholder="tag1, tag2, tag3"
+                                   class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end space-x-4 pt-4">
+                        <button type="button" onclick="closeModal()" 
+                                class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            Save Question
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div id="importModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50">
+        <div class="min-h-screen px-4 py-8 flex items-center justify-center">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+                <h2 class="text-xl font-bold mb-4">Import Questions (JSON)</h2>
+                <textarea id="importJson" rows="15" placeholder='[{"question": "...", "options": [...], ...}]'
+                          class="w-full px-4 py-2 border rounded-lg font-mono text-sm"></textarea>
+                <div class="flex justify-end space-x-4 mt-4">
+                    <button onclick="closeImportModal()" class="px-6 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+                    <button onclick="importQuestions()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Import</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let questions = [];
+        let currentQuestion = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadQuestions();
+            await loadAssessments();
+            setupEventListeners();
+        });
+
+        async function loadQuestions() {
+            try {
+                const response = await fetch('/api/questions');
+                const data = await response.json();
+                questions = data.questions;
+                displayQuestions(questions);
+                updateStats();
+            } catch (error) {
+                console.error('Error loading questions:', error);
+                showNotification('Failed to load questions', 'error');
+            }
+        }
+
+        async function loadAssessments() {
+            try {
+                const response = await fetch('/api/questions/assessments/list');
+                const data = await response.json();
+                const select = document.getElementById('assessmentFilter');
+                data.assessments.forEach(assessment => {
+                    const option = document.createElement('option');
+                    option.value = assessment;
+                    option.textContent = assessment;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading assessments:', error);
+            }
+        }
+
+        function displayQuestions(data) {
+            const container = document.getElementById('questionsList');
+            document.getElementById('questionCount').textContent = data.length;
+            
+            if (data.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-8">No questions found</p>';
+                return;
+            }
+            
+            container.innerHTML = data.map(q => `
+                <div class="border rounded-lg p-4 hover:bg-gray-50">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <span class="text-xs px-2 py-1 rounded ${getDifficultyColor(q.difficulty)}">${q.difficulty}</span>
+                                <span class="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800">${q.assessment}</span>
+                                ${q.topic ? `<span class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-800">${q.topic}</span>` : ''}
+                                <span class="text-xs text-gray-500">v${q.version}</span>
+                            </div>
+                            <p class="font-medium text-gray-900 mb-2">${q.question}</p>
+                            <div class="text-sm text-gray-600">
+                                <p>✓ ${q.correctAnswer}</p>
+                                ${q.statistics ? `<p class="text-xs mt-1">Used: ${q.statistics.timesUsed} times | Success: ${getSuccessRate(q)}%</p>` : ''}
+                            </div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick='editQuestion(${JSON.stringify(q).replace(/'/g, "&#39;")})' 
+                                    class="text-blue-600 hover:text-blue-700 px-3 py-1">
+                                Edit
+                            </button>
+                            <button onclick="deleteQuestion('${q._id}')" 
+                                    class="text-red-600 hover:text-red-700 px-3 py-1">
+                                Archive
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getDifficultyColor(difficulty) {
+            const colors = {
+                easy: 'bg-green-100 text-green-800',
+                medium: 'bg-yellow-100 text-yellow-800',
+                hard: 'bg-red-100 text-red-800'
+            };
+            return colors[difficulty] || colors.medium;
+        }
+
+        function getSuccessRate(question) {
+            if (!question.statistics) return 0;
+            const total = question.statistics.correctAnswers + question.statistics.incorrectAnswers;
+            if (total === 0) return 0;
+            return Math.round((question.statistics.correctAnswers / total) * 100);
+        }
+
+        function showAddModal() {
+            document.getElementById('modalTitle').textContent = 'Add Question';
+            document.getElementById('questionForm').reset();
+            document.getElementById('questionId').value = '';
+            currentQuestion = null;
+            document.getElementById('questionModal').classList.remove('hidden');
+        }
+
+        function editQuestion(question) {
+            document.getElementById('modalTitle').textContent = 'Edit Question';
+            document.getElementById('questionId').value = question._id;
+            document.getElementById('questionText').value = question.question;
+            document.getElementById('questionAssessment').value = question.assessment;
+            document.getElementById('questionDifficulty').value = question.difficulty;
+            document.getElementById('questionOptions').value = question.options.join('\n');
+            document.getElementById('questionCorrect').value = question.correctAnswer;
+            document.getElementById('questionExplanation').value = question.explanation || '';
+            document.getElementById('questionTopic').value = question.topic || '';
+            document.getElementById('questionTags').value = question.tags ? question.tags.join(', ') : '';
+            currentQuestion = question;
+            document.getElementById('questionModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('questionModal').classList.add('hidden');
+        }
+
+        document.getElementById('questionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                question: document.getElementById('questionText').value,
+                assessment: document.getElementById('questionAssessment').value,
+                difficulty: document.getElementById('questionDifficulty').value,
+                options: document.getElementById('questionOptions').value.split('\n').filter(o => o.trim()),
+                correctAnswer: document.getElementById('questionCorrect').value,
+                explanation: document.getElementById('questionExplanation').value,
+                topic: document.getElementById('questionTopic').value,
+                tags: document.getElementById('questionTags').value.split(',').map(t => t.trim()).filter(t => t),
+                modifiedBy: 'admin'
+            };
+            
+            try {
+                const questionId = document.getElementById('questionId').value;
+                const url = questionId ? `/api/questions/${questionId}` : '/api/questions';
+                const method = questionId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification(result.message, 'success');
+                    closeModal();
+                    await loadQuestions();
+                } else {
+                    showNotification(result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error saving question:', error);
+                showNotification('Failed to save question', 'error');
+            }
+        });
+
+        async function deleteQuestion(id) {
+            if (!confirm('Archive this question?')) return;
+            
+            try {
+                const response = await fetch(`/api/questions/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification(result.message, 'success');
+                    await loadQuestions();
+                } else {
+                    showNotification(result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting question:', error);
+                showNotification('Failed to delete question', 'error');
+            }
+        }
+
+        function filterQuestions() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const assessment = document.getElementById('assessmentFilter').value;
+            const difficulty = document.getElementById('difficultyFilter').value;
+            const status = document.getElementById('statusFilter').value;
+            
+            let filtered = questions.filter(q => {
+                if (search && !q.question.toLowerCase().includes(search)) return false;
+                if (assessment && q.assessment !== assessment) return false;
+                if (difficulty && q.difficulty !== difficulty) return false;
+                if (status && q.status !== status) return false;
+                return true;
+            });
+            
+            displayQuestions(filtered);
+        }
+
+        function setupEventListeners() {
+            document.getElementById('searchInput').addEventListener('input', filterQuestions);
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.remove('tab-active'));
+            document.getElementById(`tab-${tab}`).classList.add('tab-active');
+            
+            if (tab === 'all') {
+                document.getElementById('view-all').classList.remove('hidden');
+                document.getElementById('view-stats').classList.add('hidden');
+            } else {
+                document.getElementById('view-all').classList.add('hidden');
+                document.getElementById('view-stats').classList.remove('hidden');
+                loadStats();
+            }
+        }
+
+        async function loadStats() {
+            const assessments = [...new Set(questions.map(q => q.assessment))];
+            let totalActive = questions.filter(q => q.status === 'active').length;
+            let totalCorrect = 0, totalAnswers = 0;
+            
+            questions.forEach(q => {
+                if (q.statistics) {
+                    totalCorrect += q.statistics.correctAnswers;
+                    totalAnswers += q.statistics.correctAnswers + q.statistics.incorrectAnswers;
+                }
+            });
+            
+            document.getElementById('stat-total').textContent = questions.length;
+            document.getElementById('stat-active').textContent = totalActive;
+            document.getElementById('stat-success').textContent = totalAnswers > 0 ? 
+                Math.round((totalCorrect / totalAnswers) * 100) + '%' : '0%';
+            
+            const statsHTML = assessments.map(assessment => {
+                const count = questions.filter(q => q.assessment === assessment).length;
+                return `
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                        <span class="font-medium">${assessment}</span>
+                        <span class="text-gray-600">${count} questions</span>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('assessmentStats').innerHTML = statsHTML;
+        }
+
+        function updateStats() {
+            // Update stats in background
+            loadStats();
+        }
+
+        function showImportModal() {
+            document.getElementById('importModal').classList.remove('hidden');
+        }
+
+        function closeImportModal() {
+            document.getElementById('importModal').classList.add('hidden');
+        }
+
+        async function importQuestions() {
+            try {
+                const json = JSON.parse(document.getElementById('importJson').value);
+                
+                const response = await fetch('/api/questions/bulk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ questions: json })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification(result.message, 'success');
+                    closeImportModal();
+                    await loadQuestions();
+                } else {
+                    showNotification(result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error importing:', error);
+                showNotification('Invalid JSON format', 'error');
+            }
+        }
+
+        function exportQuestions() {
+            const dataStr = JSON.stringify(questions, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'questions-export.json';
+            link.click();
+        }
+
+        function showNotification(message, type) {
+            const color = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 ${color} text-white px-6 py-3 rounded-lg shadow-lg z-50`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+        }
+    </script>
+</body>
+</html>
+

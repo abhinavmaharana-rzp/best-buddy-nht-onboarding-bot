@@ -28,7 +28,9 @@ const userLookupRoutes = require("./routes/userLookup");     // User lookup and 
 const dashboardRoutes = require("./routes/dashboard");       // Admin dashboard routes
 const authRoutes = require("./routes/auth");                 // Authentication routes
 const assessmentRoutes = require("./routes/assessment");     // Proctored assessment routes
+const { setSlackApp } = require("./routes/assessment");      // Slack app setter for assessments
 const analyticsRoutes = require("./routes/analytics");       // Analytics and reporting routes
+const questionsRoutes = require("./routes/questions");       // Question bank management routes
 
 // API documentation
 const swaggerUi = require("swagger-ui-express");  // Swagger UI for API documentation
@@ -67,6 +69,9 @@ const app = new App({
  * This handles the dashboard, analytics, and other web interfaces.
  */
 const expressApp = express();
+
+// Import error handler
+const errorHandler = require("./utils/errorHandler");
 
 // Middleware configuration
 expressApp.use(express.json()); // Parse JSON request bodies
@@ -108,6 +113,7 @@ expressApp.use("/user-lookup", userLookupRoutes);             // User lookup end
 expressApp.use("/dashboard", createDashboardRouter(app));     // Admin dashboard endpoints
 expressApp.use("/api/assessment", assessmentRoutes);          // Assessment API endpoints
 expressApp.use("/api/analytics", analyticsRoutes);            // Analytics API endpoints
+expressApp.use("/api/questions", questionsRoutes);            // Question bank API endpoints
 
 /**
  * Web Interface Routes
@@ -134,6 +140,22 @@ expressApp.get("/analytics", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "analytics-dashboard.html"));
 });
 
+expressApp.get("/recordings", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin-recordings.html"));
+});
+
+expressApp.get("/questions", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin-questions.html"));
+});
+
+expressApp.get("/analytics-v2", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin-analytics-v2.html"));
+});
+
+expressApp.get("/practice", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "practice-assessment.html"));
+});
+
 /**
  * API Documentation
  * 
@@ -141,6 +163,14 @@ expressApp.get("/analytics", (req, res) => {
  * This provides interactive documentation for all API endpoints
  */
 expressApp.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
+
+/**
+ * Error Handling Middleware
+ * 
+ * Centralized error handling for consistent error responses
+ * Must be defined after all routes
+ */
+expressApp.use(errorHandler.expressMiddleware());
 
 /**
  * Application Startup
@@ -154,6 +184,10 @@ expressApp.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
     // Start Slack Bolt app
     await app.start();
     console.log("✅ Slack Bolt app started successfully");
+
+    // Pass Slack app instance to assessment routes for notifications
+    setSlackApp(app);
+    console.log("✅ Slack app instance configured for assessment routes");
 
     /**
      * Initialize Background Services

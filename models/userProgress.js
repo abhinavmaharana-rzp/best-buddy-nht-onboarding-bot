@@ -184,23 +184,8 @@ const userProgressSchema = new mongoose.Schema({
     }
   }],
 
-  // Social Engagement Metrics
+  // Social Engagement Metrics (Future Implementation)
   socialActivity: {
-    questionsAsked: {
-      type: Number,
-      default: 0,
-      comment: "Number of questions asked in channels"
-    },
-    answersProvided: {
-      type: Number,
-      default: 0,
-      comment: "Number of helpful answers provided"
-    },
-    peerInteractions: {
-      type: Number,
-      default: 0,
-      comment: "Number of interactions with peers"
-    },
     mentorSessions: {
       type: Number,
       default: 0,
@@ -296,13 +281,13 @@ const userProgressSchema = new mongoose.Schema({
  * Database Indexes
  * 
  * Creates indexes for efficient querying:
- * - userId: For user-specific queries
+ * - userId: Already indexed via unique constraint above
  * - level: For leaderboard and level-based queries
  * - overallProgress: For progress-based filtering
  * - points: For leaderboard sorting (descending)
  * - lastActive: For activity-based queries
  */
-userProgressSchema.index({ userId: 1 });
+// Note: userId already has unique index from unique: true constraint
 userProgressSchema.index({ level: 1 });
 userProgressSchema.index({ overallProgress: 1 });
 userProgressSchema.index({ points: -1 });

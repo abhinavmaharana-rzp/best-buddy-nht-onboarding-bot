@@ -19,13 +19,25 @@ const ProctoringSession = require("../models/proctoringSession");
 const TaskApproval = require("../models/taskApproval");
 const TaskStatus = require("../models/taskStatus");
 const UserProgress = require("../models/userProgress");
-const googleFormsService = require("../services/googleFormsService");
 const assessmentData = require("../data/assessmentData");
 const authMiddleware = require("../utils/auth");
-const { simulateGoogleFormsScoring } = require("../utils/scoring");
 const { getBaseUrl } = require("../utils/config");
+const emailService = require("../services/emailService");
+const storageService = require("../services/storageService");
+
+// Store Slack app instance globally for this module
+let slackApp = null;
 
 const router = express.Router();
+
+// Function to set Slack app instance
+function setSlackApp(app) {
+  slackApp = app;
+}
+
+// Export both router and setter function
+module.exports = router;
+module.exports.setSlackApp = setSlackApp;
 
 // Health check endpoint
 router.get("/health", (req, res) => {
@@ -33,7 +45,8 @@ router.get("/health", (req, res) => {
     status: "ok", 
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    baseUrl: getBaseUrl()
+    baseUrl: getBaseUrl(),
+    storage: storageService.getStorageInfo()
   });
 });
 
@@ -132,107 +145,7 @@ router.get("/admin/assessments", async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/assessment/calculate-score:
- *   post:
- *     summary: Calculate score from Google Forms submission
- *     tags: [Assessment]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               assessmentId:
- *                 type: string
- *               formUrl:
- *                 type: string
- *               timeSpent:
- *                 type: number
- *               violations:
- *                 type: number
- *     responses:
- *       200:
- *         description: Score calculated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 score:
- *                   type: number
- *                 rawScore:
- *                   type: number
- *                 totalQuestions:
- *                   type: number
- *                 passed:
- *                   type: boolean
- *       400:
- *         description: Bad request
- *       500:
- *         description: Internal server error
- */
-router.post("/calculate-score", async (req, res) => {
-  try {
-    console.log("Google Forms score calculation request:", req.body);
-    
-    const { assessmentId, formUrl, timeSpent, violations } = req.body;
-    
-    // Validate required fields
-    if (!assessmentId || !formUrl) {
-      return res.status(400).json({ 
-        success: false,
-        error: "Missing required fields: assessmentId and formUrl" 
-      });
-    }
-    
-    // Get assessment details
-    const assessment = await Assessment.findById(assessmentId);
-    if (!assessment) {
-      return res.status(404).json({ 
-        success: false,
-        error: "Assessment not found" 
-      });
-    }
-    
-    // Calculate score using Google Forms service
-    const scoreResult = await googleFormsService.processFormSubmission(formUrl, {
-      timeSpent: timeSpent || 0,
-      violations: violations || 0,
-      attemptCount: assessment.attemptCount || 1
-    });
-    
-    if (!scoreResult.success) {
-      return res.status(500).json({
-        success: false,
-        error: scoreResult.error || "Failed to calculate score"
-      });
-    }
-    
-    console.log("Google Forms score calculated:", scoreResult);
-    
-    res.json({
-      success: true,
-      score: scoreResult.score,
-      rawScore: scoreResult.rawScore,
-      totalQuestions: scoreResult.totalQuestions,
-      passed: scoreResult.passed,
-      formId: scoreResult.formId
-    });
-    
-  } catch (error) {
-    console.error("Error calculating Google Forms score:", error);
-    res.status(500).json({
-      success: false,
-      error: "Internal server error",
-      message: error.message
-    });
-  }
-});
+// Removed calculate-score endpoint - now using custom assessment forms
 
 /**
  * @swagger
@@ -634,8 +547,9 @@ router.get("/config/:assessmentId", async (req, res) => {
     const response = {
       assessmentId: assessment._id,
       taskTitle: assessment.taskTitle,
+      title: config.title || assessment.taskTitle,
       description: config.description,
-      googleFormUrl: config.googleFormUrl,
+      questions: config.questions,
       passingScore: config.passingScore,
       timeLimit: config.timeLimit,
       maxAttempts: config.maxAttempts,
@@ -654,6 +568,59 @@ router.get("/config/:assessmentId", async (req, res) => {
       code: "INTERNAL_ERROR",
       message: error.message
     });
+  }
+});
+
+/**
+ * @swagger
+ * /api/assessment/practice:
+ *   post:
+ *     summary: Start a practice assessment (no recording, unlimited attempts)
+ *     tags: [Assessment]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               taskTitle:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Practice assessment started
+ */
+router.post("/practice", async (req, res) => {
+  try {
+    const { taskTitle } = req.body;
+    
+    if (!taskTitle) {
+      return res.status(400).json({ error: "Task title is required" });
+    }
+    
+    const config = assessmentData.assessments[taskTitle];
+    if (!config) {
+      return res.status(400).json({ error: "Assessment configuration not found" });
+    }
+    
+    const sessionId = `practice_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    res.json({
+      mode: 'practice',
+      sessionId: sessionId,
+      config: {
+        taskTitle: taskTitle,
+        title: config.title || taskTitle,
+        description: config.description,
+        questions: config.questions,
+        passingScore: config.passingScore,
+        timeLimit: config.timeLimit,
+        proctoringEnabled: false, // No proctoring in practice mode
+      }
+    });
+  } catch (error) {
+    console.error("Error starting practice assessment:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -691,6 +658,9 @@ router.get("/config/:assessmentId", async (req, res) => {
  *               taskIndex:
  *                 type: integer
  *                 description: Task index
+ *               practiceMode:
+ *                 type: boolean
+ *                 description: Whether this is a practice run
  *     responses:
  *       200:
  *         description: Assessment started successfully
@@ -755,7 +725,8 @@ router.post("/start", async (req, res) => {
         weekIndex,
         dayIndex,
         taskIndex,
-        googleFormUrl: config.googleFormUrl,
+        questions: config.questions,
+        totalQuestions: config.questions ? config.questions.length : 0,
         passingScore: config.passingScore,
         maxAttempts: config.maxAttempts,
         status: "in_progress",
@@ -798,8 +769,9 @@ router.post("/start", async (req, res) => {
       sessionId: proctoringSession.sessionId,
       config: {
         taskTitle: assessment.taskTitle,
+        title: config.title || assessment.taskTitle,
         description: config.description,
-        googleFormUrl: config.googleFormUrl,
+        questions: config.questions,
         passingScore: config.passingScore,
         timeLimit: config.timeLimit,
         maxAttempts: config.maxAttempts,
@@ -931,7 +903,7 @@ router.post("/violation", async (req, res) => {
  * @swagger
  * /api/assessment/upload-recording:
  *   post:
- *     summary: Upload screen recording
+ *     summary: Upload screen or webcam recording
  *     tags: [Assessment]
  *     requestBody:
  *       required: true
@@ -940,22 +912,85 @@ router.post("/violation", async (req, res) => {
  *           schema:
  *             type: object
  *             properties:
- *               recording:
+ *               screenRecording:
+ *                 type: string
+ *                 format: binary
+ *               webcamRecording:
  *                 type: string
  *                 format: binary
  *               sessionId:
  *                 type: string
+ *               recordingType:
+ *                 type: string
+ *                 enum: [screen, webcam]
  *     responses:
  *       200:
  *         description: Recording uploaded successfully
  */
-router.post("/upload-recording", upload.single("recording"), async (req, res) => {
+/**
+ * @swagger
+ * /api/assessment/upload-chunk:
+ *   post:
+ *     summary: Upload video chunk during recording (streaming upload)
+ *     tags: [Assessment]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               chunk:
+ *                 type: string
+ *                 format: binary
+ *               sessionId:
+ *                 type: string
+ *               recordingType:
+ *                 type: string
+ *               chunkTimestamp:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Chunk uploaded successfully
+ */
+router.post("/upload-chunk", upload.single("chunk"), async (req, res) => {
   try {
-    const { sessionId } = req.body;
+    const { sessionId, recordingType, chunkTimestamp } = req.body;
     const file = req.file;
 
-    if (!file) {
-      return res.status(400).json({ error: "No recording file provided" });
+    if (!file || !sessionId) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    console.log(`📦 Chunk upload: ${recordingType} for session ${sessionId}`);
+    
+    // Upload using storage service (S3 or local)
+    const uploadResult = await storageService.uploadRecording(file, sessionId, `${recordingType}_chunk_${chunkTimestamp}`);
+    
+    console.log(`✅ Chunk saved via ${uploadResult.storage}: ${uploadResult.fileUrl}`);
+    
+    res.json({ 
+      success: true,
+      message: "Chunk uploaded successfully",
+      storage: uploadResult.storage,
+      fileUrl: uploadResult.fileUrl,
+      size: file.size
+    });
+  } catch (error) {
+    console.error("Error uploading chunk:", error);
+    res.status(500).json({ error: "Internal server error", message: error.message });
+  }
+});
+
+router.post("/upload-recording", upload.fields([
+  { name: 'screenRecording', maxCount: 1 },
+  { name: 'webcamRecording', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    const { sessionId, recordingType } = req.body;
+    
+    if (!sessionId) {
+      return res.status(400).json({ error: "Session ID is required" });
     }
 
     const proctoringSession = await ProctoringSession.findOne({ sessionId });
@@ -963,22 +998,62 @@ router.post("/upload-recording", upload.single("recording"), async (req, res) =>
       return res.status(404).json({ error: "Proctoring session not found" });
     }
 
-    proctoringSession.screenRecording = {
-      enabled: true,
-      fileUrl: `/uploads/recordings/${file.filename}`,
-      startTime: proctoringSession.startTime,
-      endTime: new Date(),
-    };
+    let fileUrl = null;
+    let storageType = 'none';
+    
+    // Handle screen recording
+    if (req.files && req.files.screenRecording && req.files.screenRecording[0]) {
+      const file = req.files.screenRecording[0];
+      
+      // Upload using storage service (S3 or local)
+      const uploadResult = await storageService.uploadRecording(file, sessionId, 'screen');
+      fileUrl = uploadResult.fileUrl;
+      storageType = uploadResult.storage;
+      
+      proctoringSession.screenRecording = {
+        enabled: true,
+        fileUrl: fileUrl,
+        startTime: proctoringSession.startTime,
+        endTime: new Date(),
+      };
+      
+      console.log(`✅ Screen recording uploaded via ${storageType}: ${fileUrl}`);
+    }
+    
+    // Handle webcam recording
+    if (req.files && req.files.webcamRecording && req.files.webcamRecording[0]) {
+      const file = req.files.webcamRecording[0];
+      
+      // Upload using storage service (S3 or local)
+      const uploadResult = await storageService.uploadRecording(file, sessionId, 'webcam');
+      fileUrl = uploadResult.fileUrl;
+      storageType = uploadResult.storage;
+      
+      proctoringSession.webcamRecording = {
+        enabled: true,
+        fileUrl: fileUrl,
+        startTime: proctoringSession.startTime,
+        endTime: new Date(),
+      };
+      
+      console.log(`✅ Webcam recording uploaded via ${storageType}: ${fileUrl}`);
+    }
+
+    if (!fileUrl) {
+      return res.status(400).json({ error: "No recording file provided" });
+    }
 
     await proctoringSession.save();
 
     res.json({ 
       success: true, 
-      fileUrl: proctoringSession.screenRecording.fileUrl 
+      fileUrl: fileUrl,
+      storage: storageType,
+      recordingType: recordingType
     });
   } catch (error) {
     console.error("Error uploading recording:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Internal server error", message: error.message });
   }
 });
 
@@ -1086,23 +1161,77 @@ router.post("/complete", async (req, res) => {
       await approval.save();
     }
 
-    // Call webhook for completion notification
-    try {
-      await fetch(`${getBaseUrl()}/api/assessment/webhook/completion`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          assessmentId: assessment._id,
-          userId: assessment.userId,
-          score: assessment.score,
-          passed: assessment.passed,
-          taskTitle: assessment.taskTitle,
-        }),
-      });
-    } catch (webhookError) {
-      console.error('Error calling completion webhook:', webhookError);
+    // Send Slack notification directly
+    if (slackApp && slackApp.client) {
+      try {
+        const scoreDisplay = rawScore && totalQuestions 
+          ? `${rawScore}/${totalQuestions} (${score}%)`
+          : `${score}%`;
+          
+        const message = passed 
+          ? `🎉 *Congratulations!* You have successfully completed the proctored assessment for *"${assessment.taskTitle}"*!\n\n*Your Score:* ${scoreDisplay}\n*Status:* ✅ Passed\n\nGreat job! Your results have been recorded.`
+          : `📊 You have completed the proctored assessment for *"${assessment.taskTitle}"*.\n\n*Your Score:* ${scoreDisplay}\n*Status:* ❌ Not Passed\n*Passing Score Required:* 80%\n\nPlease review the material and try again. You can do it!`;
+
+        await slackApp.client.chat.postMessage({
+          token: process.env.SLACK_BOT_TOKEN,
+          channel: assessment.userId,
+          text: message,
+          blocks: [
+            {
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: message,
+              },
+            },
+            {
+              type: "divider"
+            },
+            {
+              type: "context",
+              elements: [
+                {
+                  type: "mrkdwn",
+                  text: `Assessment: ${assessment.taskTitle} | Score: ${scoreDisplay} | Status: ${passed ? "✅ Passed" : "❌ Failed"}`,
+                },
+              ],
+            },
+          ],
+        });
+
+        console.log(`✅ Slack notification sent to user ${assessment.userId} for assessment completion`);
+        
+        // Get user info for email
+        try {
+          const userInfo = await slackApp.client.users.info({
+            token: process.env.SLACK_BOT_TOKEN,
+            user: assessment.userId,
+          });
+          
+          if (userInfo.ok && userInfo.user.profile.email) {
+            const userName = userInfo.user.profile.real_name || userInfo.user.name;
+            const userEmail = userInfo.user.profile.email;
+            
+            // Send email notification
+            await emailService.sendAssessmentCompletionEmail(userEmail, userName, {
+              taskTitle: assessment.taskTitle,
+              score: score,
+              rawScore: rawScore,
+              totalQuestions: totalQuestions,
+              passed: passed
+            });
+            
+            console.log(`✅ Email notification sent to ${userEmail}`);
+          }
+        } catch (emailError) {
+          console.error('❌ Error sending email notification:', emailError);
+          // Don't fail the whole process if email fails
+        }
+      } catch (slackError) {
+        console.error('❌ Error sending Slack notification:', slackError);
+      }
+    } else {
+      console.warn('⚠️ Slack app not initialized, skipping notification');
     }
 
     res.json({ 
@@ -1164,6 +1293,122 @@ router.get("/results/:userId", authMiddleware, async (req, res) => {
   } catch (error) {
     console.error("Error getting assessment results:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/assessment/sessions/all:
+ *   get:
+ *     summary: Get all proctoring sessions (Admin)
+ *     tags: [Assessment]
+ *     responses:
+ *       200:
+ *         description: All proctoring sessions retrieved successfully
+ */
+router.get("/sessions/all", async (req, res) => {
+  try {
+    console.log("📹 Admin requesting all proctoring sessions");
+    
+    const sessions = await ProctoringSession.find({})
+      .populate("assessmentId")
+      .sort({ createdAt: -1 })
+      .limit(100) // Limit to last 100 sessions
+      .lean();
+
+    const results = sessions.map(session => ({
+      _id: session._id,
+      sessionId: session.sessionId,
+      userId: session.userId,
+      status: session.status,
+      startTime: session.startTime,
+      endTime: session.endTime,
+      duration: session.duration,
+      violations: session.violations || [],
+      screenRecording: session.screenRecording,
+      webcamRecording: session.webcamRecording,
+      environment: session.environment,
+      metadata: session.metadata,
+      assessment: session.assessmentId ? {
+        taskTitle: session.assessmentId.taskTitle,
+        score: session.assessmentId.score,
+        passed: session.assessmentId.passed,
+      } : null,
+    }));
+
+    console.log(`✅ Retrieved ${results.length} proctoring sessions`);
+    res.json(results);
+  } catch (error) {
+    console.error("❌ Error getting all proctoring sessions:", error);
+    res.status(500).json({ error: "Internal server error", message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/assessment/sessions/{sessionId}/details:
+ *   get:
+ *     summary: Get detailed session information (Admin)
+ *     tags: [Assessment]
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Session ID or MongoDB _id
+ *     responses:
+ *       200:
+ *         description: Session details retrieved successfully
+ */
+router.get("/sessions/:sessionId/details", async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    console.log(`📹 Fetching details for session: ${sessionId}`);
+    
+    // Try to find by either sessionId or _id
+    const session = await ProctoringSession.findOne({
+      $or: [
+        { sessionId: sessionId },
+        { _id: mongoose.Types.ObjectId.isValid(sessionId) ? sessionId : null }
+      ]
+    })
+      .populate("assessmentId")
+      .lean();
+
+    if (!session) {
+      console.error(`❌ Session not found: ${sessionId}`);
+      return res.status(404).json({ error: "Session not found" });
+    }
+
+    const result = {
+      _id: session._id,
+      sessionId: session.sessionId,
+      userId: session.userId,
+      status: session.status,
+      startTime: session.startTime,
+      endTime: session.endTime,
+      duration: session.duration,
+      violations: session.violations || [],
+      screenRecording: session.screenRecording,
+      webcamRecording: session.webcamRecording,
+      environment: session.environment,
+      metadata: session.metadata,
+      assessment: session.assessmentId ? {
+        taskTitle: session.assessmentId.taskTitle,
+        score: session.assessmentId.score,
+        rawScore: session.assessmentId.rawScore,
+        totalQuestions: session.assessmentId.totalQuestions,
+        passed: session.assessmentId.passed,
+        completedAt: session.assessmentId.completedAt,
+      } : null,
+    };
+
+    console.log(`✅ Session details retrieved for ${sessionId}`);
+    res.json(result);
+  } catch (error) {
+    console.error("❌ Error getting session details:", error);
+    res.status(500).json({ error: "Internal server error", message: error.message });
   }
 });
 
@@ -1236,6 +1481,10 @@ router.get("/sessions/:userId", authMiddleware, async (req, res) => {
  *                 type: string
  *               score:
  *                 type: number
+ *               rawScore:
+ *                 type: number
+ *               totalQuestions:
+ *                 type: number
  *               passed:
  *                 type: boolean
  *               taskTitle:
@@ -1246,54 +1495,64 @@ router.get("/sessions/:userId", authMiddleware, async (req, res) => {
  */
 router.post("/webhook/completion", async (req, res) => {
   try {
-    const { assessmentId, userId, score, passed, taskTitle } = req.body;
+    const { assessmentId, userId, score, rawScore, totalQuestions, passed, taskTitle } = req.body;
 
-    // Get user info for Slack notification
-    const userInfo = await req.app.client.users.info({
-      token: process.env.SLACK_BOT_TOKEN,
-      user: userId,
-    });
+    console.log(`📬 Webhook received for user ${userId}, assessment: ${taskTitle}, score: ${score}%, passed: ${passed}`);
 
-    if (!userInfo.ok) {
-      return res.status(404).json({ error: "User not found" });
+    if (!slackApp || !slackApp.client) {
+      console.error("❌ Slack app not initialized");
+      return res.status(500).json({ error: "Slack app not initialized" });
     }
 
-    const userName = userInfo.user.profile.real_name || "User";
+    try {
+      // Send notification to user via Slack DM
+      const scoreDisplay = rawScore && totalQuestions 
+        ? `${rawScore}/${totalQuestions} (${score}%)`
+        : `${score}%`;
+        
+      const message = passed 
+        ? `🎉 *Congratulations!* You have successfully completed the proctored assessment for *"${taskTitle}"*!\n\n*Your Score:* ${scoreDisplay}\n*Status:* ✅ Passed\n\nGreat job! Your results have been recorded.`
+        : `📊 You have completed the proctored assessment for *"${taskTitle}"*.\n\n*Your Score:* ${scoreDisplay}\n*Status:* ❌ Not Passed\n*Passing Score Required:* 80%\n\nPlease review the material and try again. You can do it!`;
 
-    // Send notification to user
-    const message = passed 
-      ? `🎉 Congratulations! You have successfully completed the proctored assessment for "${taskTitle}" with a score of ${score}%.`
-      : `❌ Unfortunately, you did not pass the proctored assessment for "${taskTitle}". Your score was ${score}%. Please prepare well and try again.`;
-
-    await req.app.client.chat.postMessage({
-      token: process.env.SLACK_BOT_TOKEN,
-      channel: userId,
-      text: message,
-      blocks: [
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: message,
-          },
-        },
-        {
-          type: "context",
-          elements: [
-            {
+      await slackApp.client.chat.postMessage({
+        token: process.env.SLACK_BOT_TOKEN,
+        channel: userId,
+        text: message,
+        blocks: [
+          {
+            type: "section",
+            text: {
               type: "mrkdwn",
-              text: `Assessment: ${taskTitle} | Score: ${score}% | Status: ${passed ? "Passed" : "Failed"}`,
+              text: message,
             },
-          ],
-        },
-      ],
-    });
+          },
+          {
+            type: "divider"
+          },
+          {
+            type: "context",
+            elements: [
+              {
+                type: "mrkdwn",
+                text: `Assessment: ${taskTitle} | Score: ${scoreDisplay} | Status: ${passed ? "✅ Passed" : "❌ Failed"}`,
+              },
+            ],
+          },
+        ],
+      });
 
-    res.json({ success: true });
+      console.log(`✅ Slack notification sent successfully to user ${userId}`);
+      res.json({ success: true, message: "Notification sent successfully" });
+    } catch (slackError) {
+      console.error("❌ Error sending Slack notification:", slackError);
+      res.status(500).json({ 
+        error: "Failed to send Slack notification", 
+        details: slackError.message 
+      });
+    }
+
   } catch (error) {
-    console.error("Error processing completion webhook:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("❌ Error processing completion webhook:", error);
+    res.status(500).json({ error: "Internal server error", message: error.message });
   }
 });
-
-module.exports = router;

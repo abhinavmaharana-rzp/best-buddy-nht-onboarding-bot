@@ -25,7 +25,7 @@ const assessmentSchema = new mongoose.Schema({
   userId: {
     type: String,
     required: true,
-    index: true, // Indexed for efficient user-based queries
+    // Note: Indexed via compound index below (userId + weekIndex + dayIndex + taskIndex)
     comment: "Slack user ID of the person taking the assessment"
   },
   taskTitle: {
@@ -48,10 +48,35 @@ const assessmentSchema = new mongoose.Schema({
     required: true,
     comment: "Task number within the day (0-based index)"
   },
-  googleFormUrl: {
+  questions: [{
+    id: { type: Number },
+    question: { type: String },
+    options: [{ type: String }],
+    correctAnswer: { type: String },
+    explanation: { type: String }
+  }],
+  rawScore: {
+    type: Number,
+    min: 0,
+    comment: "Number of correct answers"
+  },
+  totalQuestions: {
+    type: Number,
+    min: 0,
+    comment: "Total number of questions in the assessment"
+  },
+  timeSpent: {
+    type: Number,
+    comment: "Time spent on the assessment in minutes"
+  },
+  violations: {
+    type: Number,
+    default: 0,
+    comment: "Number of proctoring violations detected"
+  },
+  reason: {
     type: String,
-    required: true,
-    comment: "URL of the Google Form containing the assessment questions"
+    comment: "Reason for completion status (passed/failed/terminated)"
   },
 
   // Assessment Status and Scoring

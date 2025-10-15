@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proctoring Recordings - Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f9fafb;
+        }
+        
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .video-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .video-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            padding: 20px;
+        }
+        
+        .violation-marker {
+            position: absolute;
+            top: 4px;
+            height: 12px;
+            width: 3px;
+            background: #ef4444;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .violation-marker:hover {
+            height: 16px;
+            top: 2px;
+            background: #dc2626;
+        }
+        
+        .timeline {
+            position: relative;
+            height: 20px;
+            background: #374151;
+            border-radius: 10px;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+        
+        .timeline-progress {
+            height: 100%;
+            background: #3b82f6;
+            border-radius: 10px;
+            transition: width 0.1s;
+        }
+        
+        .recording-card {
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .recording-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .badge-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold text-gray-900">📹 Proctoring Recordings</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/dashboard" class="text-gray-600 hover:text-gray-900">← Back to Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Filters -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Search User/Assessment</label>
+                    <input type="text" id="searchInput" placeholder="Search..." 
+                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <select id="statusFilter" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">All</option>
+                        <option value="completed">Completed</option>
+                        <option value="active">Active</option>
+                        <option value="terminated">Terminated</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Violations</label>
+                    <select id="violationFilter" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">All</option>
+                        <option value="none">No Violations</option>
+                        <option value="low">1-2 Violations</option>
+                        <option value="medium">3-5 Violations</option>
+                        <option value="high">5+ Violations</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+                    <input type="date" id="dateFilter" 
+                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+        </div>
+
+        <!-- Recordings List -->
+        <div id="recordingsList" class="space-y-4">
+            <!-- Recordings will be loaded here -->
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p class="mt-4 text-gray-600">Loading recordings...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No recordings found</h3>
+            <p class="mt-1 text-sm text-gray-500">Try adjusting your filters</p>
+        </div>
+    </div>
+
+    <!-- Video Player Modal -->
+    <div id="videoModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 overflow-y-auto">
+        <div class="min-h-screen px-4 py-8">
+            <div class="max-w-7xl mx-auto">
+                <!-- Header -->
+                <div class="bg-white rounded-t-lg p-6 flex justify-between items-center">
+                    <div>
+                        <h2 id="modalTitle" class="text-2xl font-bold text-gray-900">Recording Review</h2>
+                        <p id="modalSubtitle" class="text-sm text-gray-600 mt-1"></p>
+                    </div>
+                    <button onclick="closeVideoModal()" class="text-gray-500 hover:text-gray-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Video Players -->
+                <div class="bg-gray-900 p-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Screen Recording -->
+                        <div class="space-y-2">
+                            <h3 class="text-white font-semibold">🖥️ Screen Recording</h3>
+                            <div class="video-container aspect-video">
+                                <video id="screenVideo" controls class="w-full h-full">
+                                    <source id="screenSource" type="video/webm">
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                        </div>
+
+                        <!-- Webcam Recording -->
+                        <div class="space-y-2">
+                            <h3 class="text-white font-semibold">📹 Webcam Recording</h3>
+                            <div class="video-container aspect-video">
+                                <video id="webcamVideo" controls class="w-full h-full">
+                                    <source id="webcamSource" type="video/webm">
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Unified Controls -->
+                    <div class="mt-6 space-y-4">
+                        <!-- Timeline with Violation Markers -->
+                        <div class="relative">
+                            <div class="timeline" id="timeline">
+                                <div class="timeline-progress" id="timelineProgress"></div>
+                                <div id="violationMarkers"></div>
+                            </div>
+                        </div>
+
+                        <!-- Playback Controls -->
+                        <div class="flex items-center justify-between text-white">
+                            <div class="flex items-center space-x-4">
+                                <button id="playPauseBtn" onclick="togglePlayPause()" 
+                                        class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-semibold">
+                                    ▶️ Play
+                                </button>
+                                <button onclick="rewind()" class="hover:bg-gray-700 px-4 py-2 rounded-lg">
+                                    ⏪ -10s
+                                </button>
+                                <button onclick="forward()" class="hover:bg-gray-700 px-4 py-2 rounded-lg">
+                                    ⏩ +10s
+                                </button>
+                                <span id="currentTime" class="text-sm">00:00</span>
+                                <span class="text-sm">/</span>
+                                <span id="duration" class="text-sm">00:00</span>
+                            </div>
+                            <div class="flex items-center space-x-4">
+                                <label class="text-sm">Speed:</label>
+                                <select id="playbackSpeed" onchange="changeSpeed()" 
+                                        class="bg-gray-700 text-white px-3 py-1 rounded">
+                                    <option value="0.5">0.5x</option>
+                                    <option value="1" selected>1x</option>
+                                    <option value="1.5">1.5x</option>
+                                    <option value="2">2x</option>
+                                </select>
+                                <button onclick="syncVideos()" class="hover:bg-gray-700 px-4 py-2 rounded-lg text-sm">
+                                    🔄 Sync
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Session Details -->
+                <div class="bg-white rounded-b-lg p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Assessment Info -->
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-3">Assessment Details</h4>
+                            <div class="space-y-2 text-sm">
+                                <p><span class="text-gray-600">User:</span> <span id="detailUser" class="font-medium"></span></p>
+                                <p><span class="text-gray-600">Assessment:</span> <span id="detailAssessment" class="font-medium"></span></p>
+                                <p><span class="text-gray-600">Score:</span> <span id="detailScore" class="font-medium"></span></p>
+                                <p><span class="text-gray-600">Duration:</span> <span id="detailDuration" class="font-medium"></span></p>
+                                <p><span class="text-gray-600">Date:</span> <span id="detailDate" class="font-medium"></span></p>
+                            </div>
+                        </div>
+
+                        <!-- Violations -->
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-3">Violations (<span id="violationCount">0</span>)</h4>
+                            <div id="violationList" class="space-y-2 text-sm max-h-48 overflow-y-auto">
+                                <!-- Violations will be loaded here -->
+                            </div>
+                        </div>
+
+                        <!-- Technical Details -->
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-3">Technical Info</h4>
+                            <div class="space-y-2 text-sm">
+                                <p><span class="text-gray-600">Browser:</span> <span id="detailBrowser" class="font-medium"></span></p>
+                                <p><span class="text-gray-600">OS:</span> <span id="detailOS" class="font-medium"></span></p>
+                                <p><span class="text-gray-600">Resolution:</span> <span id="detailResolution" class="font-medium"></span></p>
+                                <p><span class="text-gray-600">IP:</span> <span id="detailIP" class="font-medium"></span></p>
+                                <p><span class="text-gray-600">Session ID:</span> <span id="detailSessionId" class="font-mono text-xs"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let recordings = [];
+        let currentSession = null;
+        let screenVideo, webcamVideo;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadRecordings();
+            setupEventListeners();
+            initVideoPlayers();
+        });
+
+        async function loadRecordings() {
+            try {
+                const response = await fetch('/api/assessment/sessions/all');
+                if (!response.ok) throw new Error('Failed to load recordings');
+                
+                recordings = await response.json();
+                displayRecordings(recordings);
+            } catch (error) {
+                console.error('Error loading recordings:', error);
+                showError('Failed to load recordings');
+            }
+        }
+
+        function displayRecordings(data) {
+            const container = document.getElementById('recordingsList');
+            const loadingState = document.getElementById('loadingState');
+            const emptyState = document.getElementById('emptyState');
+            
+            loadingState.classList.add('hidden');
+            
+            if (!data || data.length === 0) {
+                emptyState.classList.remove('hidden');
+                container.innerHTML = '';
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+            container.innerHTML = data.map(session => createRecordingCard(session)).join('');
+        }
+
+        function createRecordingCard(session) {
+            const violationCount = session.violations?.length || 0;
+            const statusBadge = getStatusBadge(session.status);
+            const violationBadge = getViolationBadge(violationCount);
+            const date = new Date(session.startTime).toLocaleString();
+            const duration = formatDuration(session.duration);
+            
+            return `
+                <div class="recording-card bg-white rounded-lg shadow p-6" onclick="openRecording('${session._id}')">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3 mb-2">
+                                <h3 class="text-lg font-semibold text-gray-900">${session.assessment?.taskTitle || 'Assessment'}</h3>
+                                ${statusBadge}
+                                ${violationBadge}
+                            </div>
+                            <p class="text-sm text-gray-600 mb-1">User: ${session.userId}</p>
+                            <p class="text-sm text-gray-600 mb-1">Date: ${date}</p>
+                            <p class="text-sm text-gray-600">Duration: ${duration}</p>
+                        </div>
+                        <div class="flex flex-col items-end space-y-2">
+                            ${session.screenRecording?.fileUrl ? '<span class="text-xs text-green-600">🖥️ Screen</span>' : ''}
+                            ${session.webcamRecording?.fileUrl ? '<span class="text-xs text-green-600">📹 Webcam</span>' : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getStatusBadge(status) {
+            const badges = {
+                completed: '<span class="badge badge-success">Completed</span>',
+                active: '<span class="badge badge-info">Active</span>',
+                terminated: '<span class="badge badge-danger">Terminated</span>',
+                failed: '<span class="badge badge-danger">Failed</span>'
+            };
+            return badges[status] || '';
+        }
+
+        function getViolationBadge(count) {
+            if (count === 0) return '<span class="badge badge-success">No Violations</span>';
+            if (count <= 2) return `<span class="badge badge-warning">${count} Violations</span>`;
+            return `<span class="badge badge-danger">${count} Violations</span>`;
+        }
+
+        function formatDuration(seconds) {
+            if (!seconds) return 'N/A';
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}m ${secs}s`;
+        }
+
+        async function openRecording(sessionId) {
+            try {
+                const response = await fetch(`/api/assessment/sessions/${sessionId}/details`);
+                if (!response.ok) throw new Error('Failed to load session details');
+                
+                currentSession = await response.json();
+                displayVideoModal(currentSession);
+            } catch (error) {
+                console.error('Error loading session:', error);
+                alert('Failed to load recording details');
+            }
+        }
+
+        function displayVideoModal(session) {
+            document.getElementById('videoModal').classList.remove('hidden');
+            
+            // Set header info
+            document.getElementById('modalTitle').textContent = session.assessment?.taskTitle || 'Assessment Recording';
+            document.getElementById('modalSubtitle').textContent = `Session: ${session.sessionId}`;
+            
+            // Load videos
+            if (session.screenRecording?.fileUrl) {
+                document.getElementById('screenSource').src = session.screenRecording.fileUrl;
+                screenVideo.load();
+            }
+            
+            if (session.webcamRecording?.fileUrl) {
+                document.getElementById('webcamSource').src = session.webcamRecording.fileUrl;
+                webcamVideo.load();
+            }
+            
+            // Display details
+            populateSessionDetails(session);
+            displayViolations(session.violations || []);
+            createViolationMarkers(session.violations || [], session.duration);
+        }
+
+        function populateSessionDetails(session) {
+            document.getElementById('detailUser').textContent = session.userId;
+            document.getElementById('detailAssessment').textContent = session.assessment?.taskTitle || 'N/A';
+            document.getElementById('detailScore').textContent = session.assessment?.score ? `${session.assessment.score}%` : 'N/A';
+            document.getElementById('detailDuration').textContent = formatDuration(session.duration);
+            document.getElementById('detailDate').textContent = new Date(session.startTime).toLocaleString();
+            document.getElementById('detailBrowser').textContent = session.environment?.browser || 'Unknown';
+            document.getElementById('detailOS').textContent = session.environment?.os || 'Unknown';
+            document.getElementById('detailResolution').textContent = session.environment?.screenResolution || 'Unknown';
+            document.getElementById('detailIP').textContent = session.metadata?.ipAddress || 'Unknown';
+            document.getElementById('detailSessionId').textContent = session.sessionId;
+        }
+
+        function displayViolations(violations) {
+            const container = document.getElementById('violationList');
+            document.getElementById('violationCount').textContent = violations.length;
+            
+            if (violations.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 italic">No violations detected</p>';
+                return;
+            }
+            
+            container.innerHTML = violations.map((v, i) => `
+                <div class="p-2 bg-red-50 rounded border-l-2 border-red-500" onclick="seekToViolation(${i})">
+                    <p class="font-medium text-red-900">${v.type}</p>
+                    <p class="text-xs text-red-700">${v.description}</p>
+                    <p class="text-xs text-red-600 mt-1">${new Date(v.timestamp).toLocaleTimeString()}</p>
+                </div>
+            `).join('');
+        }
+
+        function createViolationMarkers(violations, duration) {
+            const container = document.getElementById('violationMarkers');
+            container.innerHTML = '';
+            
+            if (!duration || violations.length === 0) return;
+            
+            const sessionStart = new Date(currentSession.startTime).getTime();
+            
+            violations.forEach((v, i) => {
+                const timestamp = new Date(v.timestamp).getTime();
+                const offset = (timestamp - sessionStart) / 1000; // seconds since start
+                const percentage = (offset / duration) * 100;
+                
+                const marker = document.createElement('div');
+                marker.className = 'violation-marker';
+                marker.style.left = `${percentage}%`;
+                marker.title = v.description;
+                marker.onclick = () => seekToViolation(i);
+                container.appendChild(marker);
+            });
+        }
+
+        function closeVideoModal() {
+            document.getElementById('videoModal').classList.add('hidden');
+            if (screenVideo) screenVideo.pause();
+            if (webcamVideo) webcamVideo.pause();
+        }
+
+        function initVideoPlayers() {
+            screenVideo = document.getElementById('screenVideo');
+            webcamVideo = document.getElementById('webcamVideo');
+            
+            // Sync time updates
+            screenVideo.addEventListener('timeupdate', updateTimeline);
+            
+            // Update duration when loaded
+            screenVideo.addEventListener('loadedmetadata', () => {
+                document.getElementById('duration').textContent = formatTime(screenVideo.duration);
+            });
+        }
+
+        function updateTimeline() {
+            const progress = (screenVideo.currentTime / screenVideo.duration) * 100;
+            document.getElementById('timelineProgress').style.width = `${progress}%`;
+            document.getElementById('currentTime').textContent = formatTime(screenVideo.currentTime);
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function togglePlayPause() {
+            const btn = document.getElementById('playPauseBtn');
+            if (screenVideo.paused) {
+                screenVideo.play();
+                webcamVideo.play();
+                btn.textContent = '⏸️ Pause';
+            } else {
+                screenVideo.pause();
+                webcamVideo.pause();
+                btn.textContent = '▶️ Play';
+            }
+        }
+
+        function rewind() {
+            screenVideo.currentTime = Math.max(0, screenVideo.currentTime - 10);
+            webcamVideo.currentTime = screenVideo.currentTime;
+        }
+
+        function forward() {
+            screenVideo.currentTime = Math.min(screenVideo.duration, screenVideo.currentTime + 10);
+            webcamVideo.currentTime = screenVideo.currentTime;
+        }
+
+        function changeSpeed() {
+            const speed = document.getElementById('playbackSpeed').value;
+            screenVideo.playbackRate = speed;
+            webcamVideo.playbackRate = speed;
+        }
+
+        function syncVideos() {
+            webcamVideo.currentTime = screenVideo.currentTime;
+            if (!screenVideo.paused) webcamVideo.play();
+        }
+
+        function seekToViolation(index) {
+            if (!currentSession) return;
+            
+            const violation = currentSession.violations[index];
+            const sessionStart = new Date(currentSession.startTime).getTime();
+            const timestamp = new Date(violation.timestamp).getTime();
+            const offset = (timestamp - sessionStart) / 1000;
+            
+            screenVideo.currentTime = offset;
+            webcamVideo.currentTime = offset;
+            screenVideo.play();
+            webcamVideo.play();
+        }
+
+        function setupEventListeners() {
+            // Search
+            document.getElementById('searchInput').addEventListener('input', filterRecordings);
+            
+            // Filters
+            document.getElementById('statusFilter').addEventListener('change', filterRecordings);
+            document.getElementById('violationFilter').addEventListener('change', filterRecordings);
+            document.getElementById('dateFilter').addEventListener('change', filterRecordings);
+            
+            // Timeline seeking
+            document.getElementById('timeline').addEventListener('click', (e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const percentage = x / rect.width;
+                screenVideo.currentTime = screenVideo.duration * percentage;
+                webcamVideo.currentTime = screenVideo.currentTime;
+            });
+        }
+
+        function filterRecordings() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const status = document.getElementById('statusFilter').value;
+            const violation = document.getElementById('violationFilter').value;
+            const date = document.getElementById('dateFilter').value;
+            
+            let filtered = recordings.filter(session => {
+                // Search filter
+                if (search && !session.userId.toLowerCase().includes(search) && 
+                    !(session.assessment?.taskTitle || '').toLowerCase().includes(search)) {
+                    return false;
+                }
+                
+                // Status filter
+                if (status && session.status !== status) return false;
+                
+                // Violation filter
+                const vCount = session.violations?.length || 0;
+                if (violation === 'none' && vCount > 0) return false;
+                if (violation === 'low' && (vCount === 0 || vCount > 2)) return false;
+                if (violation === 'medium' && (vCount < 3 || vCount > 5)) return false;
+                if (violation === 'high' && vCount <= 5) return false;
+                
+                // Date filter
+                if (date) {
+                    const sessionDate = new Date(session.startTime).toISOString().split('T')[0];
+                    if (sessionDate !== date) return false;
+                }
+                
+                return true;
+            });
+            
+            displayRecordings(filtered);
+        }
+
+        function showError(message) {
+            alert(message);
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeVideoModal();
+        });
+    </script>
+</body>
+</html>
+

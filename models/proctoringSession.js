@@ -69,7 +69,7 @@ const proctoringSessionSchema = new mongoose.Schema({
     },
     fileUrl: {
       type: String,
-      comment: "URL to the recorded video file"
+      comment: "URL to the screen recorded video file"
     },
     startTime: {
       type: Date,
@@ -81,11 +81,32 @@ const proctoringSessionSchema = new mongoose.Schema({
     }
   },
 
+  // Webcam Recording
+  webcamRecording: {
+    enabled: {
+      type: Boolean,
+      default: true,
+      comment: "Whether webcam recording is enabled for this session"
+    },
+    fileUrl: {
+      type: String,
+      comment: "URL to the webcam recorded video file"
+    },
+    startTime: {
+      type: Date,
+      comment: "When webcam recording started"
+    },
+    endTime: {
+      type: Date,
+      comment: "When webcam recording ended"
+    }
+  },
+
   // Violation Tracking
   violations: [{
     type: {
       type: String,
-      enum: ["tab_switch", "window_focus_loss", "copy_paste", "right_click", "keyboard_shortcut", "multiple_windows"],
+      enum: ["tab_switch", "window_focus_loss", "copy_paste", "right_click", "keyboard_shortcut", "multiple_windows", "no_face_detected", "multiple_faces", "looking_away"],
       required: true,
       comment: "Type of violation detected"
     },
@@ -171,11 +192,11 @@ const proctoringSessionSchema = new mongoose.Schema({
  * 
  * Creates indexes for efficient querying:
  * - userId + status: For user-specific session queries
- * - sessionId: For unique session lookups
+ * - sessionId: Already indexed via unique constraint above
  * - assessmentId: For assessment-related queries
  */
 proctoringSessionSchema.index({ userId: 1, status: 1 });
-proctoringSessionSchema.index({ sessionId: 1 });
+// Note: sessionId already has unique index from unique: true constraint
 proctoringSessionSchema.index({ assessmentId: 1 });
 
 // Export the ProctoringSession model

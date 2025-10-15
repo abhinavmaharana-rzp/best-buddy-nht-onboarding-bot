@@ -128,18 +128,6 @@ class GamificationService {
             icon: "🔥",
           };
           break;
-        case "help_peer":
-          points = 20;
-          badge = {
-            name: "Team Player",
-            description: "Helped a fellow new hire",
-            category: "social",
-            icon: "🤝",
-          };
-          break;
-        case "ask_question":
-          points = 5;
-          break;
         case "complete_week":
           points = 200;
           badge = {
@@ -259,25 +247,6 @@ class GamificationService {
         });
       }
 
-      // Social butterfly
-      if (userProgress.socialActivity.questionsAsked >= 10) {
-        achievements.push({
-          name: "Curious Mind",
-          description: "Asked 10 questions",
-          points: 30,
-          category: "social",
-        });
-      }
-
-      // Helper
-      if (userProgress.socialActivity.answersProvided >= 5) {
-        achievements.push({
-          name: "Helpful Colleague",
-          description: "Helped 5 fellow new hires",
-          points: 40,
-          category: "social",
-        });
-      }
 
       // Add new achievements
       for (const achievement of achievements) {
@@ -376,14 +345,6 @@ class GamificationService {
         },
       ];
 
-      if (week >= 2) {
-        weekGoals.push({
-          name: `Help a Fellow New Hire`,
-          description: "Answer a question or help someone",
-          completed: false,
-          points: 30,
-        });
-      }
 
       goals.push({
         week,

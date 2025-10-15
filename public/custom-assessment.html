@@ -125,12 +125,22 @@
             <!-- Progress Bar and Timer -->
             <div class="mb-6">
                 <div class="flex justify-between text-sm font-medium text-gray-600 mb-1">
-                    <span>Progress: <span id="progressText">0%</span></span>
-                    <span>Time: <span id="timer">00:00</span></span>
+                    <span>Progress: <span id="progressText">0/0 (0%)</span></span>
+                    <span>Time Elapsed: <span id="timer">00:00</span></span>
                 </div>
                 <div class="progress-bar">
                     <div id="progressFill" class="progress-fill"></div>
                 </div>
+                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                    <span id="questionProgress">Question 0 of 0</span>
+                    <span id="timeWarning" class="hidden text-red-600 font-semibold"></span>
+                </div>
+            </div>
+
+            <!-- Keyboard Shortcuts Help -->
+            <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs">
+                <p class="font-semibold text-blue-900 mb-1">⌨️ Keyboard Shortcuts:</p>
+                <p class="text-blue-800">→ Next Question | ← Previous Question | 1-4 Select Option | Enter Submit/Next</p>
             </div>
 
             <!-- Assessment Questions -->
@@ -236,6 +246,21 @@
             const minutes = Math.floor(elapsedTime / 60).toString().padStart(2, '0');
             const seconds = (elapsedTime % 60).toString().padStart(2, '0');
             document.getElementById('timer').textContent = `${minutes}:${seconds}`;
+            
+            // Time warnings
+            const timeLimit = (assessmentConfig.timeLimit || 30) * 60; // in seconds
+            const remaining = timeLimit - elapsedTime;
+            
+            if (remaining <= 300 && remaining > 0) { // 5 minutes left
+                const remainingMins = Math.ceil(remaining / 60);
+                document.getElementById('timeWarning').textContent = `⚠️ ${remainingMins} minutes remaining!`;
+                document.getElementById('timeWarning').classList.remove('hidden');
+            }
+            
+            if (remaining <= 60 && remaining > 0) { // 1 minute left
+                document.getElementById('timeWarning').textContent = `🚨 ${remaining} seconds remaining!`;
+                document.getElementById('timeWarning').classList.add('animate-pulse');
+            }
         }
 
         function loadQuestion() {
@@ -291,7 +316,8 @@
             const answeredQuestions = userAnswers.filter(answer => answer !== null).length;
             const progress = (answeredQuestions / questions.length) * 100;
             document.getElementById('progressFill').style.width = `${progress}%`;
-            document.getElementById('progressText').textContent = `${Math.round(progress)}%`;
+            document.getElementById('progressText').textContent = `${answeredQuestions}/${questions.length} (${Math.round(progress)}%)`;
+            document.getElementById('questionProgress').textContent = `Question ${currentQuestionIndex + 1} of ${questions.length}`;
         }
 
         function calculateScore() {
@@ -348,7 +374,7 @@
         // Event Listeners
         document.getElementById('prevBtn').addEventListener('click', () => {
             if (currentQuestionIndex > 0) {
-                currentQuestionIndex++;
+                currentQuestionIndex--;
                 loadQuestion();
             }
         });
@@ -368,6 +394,56 @@
             }
             const scoreData = calculateScore();
             showResult(scoreData);
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Prevent shortcuts if in modal or input field
+            if (document.getElementById('resultDisplay').classList.contains('hidden') === false) return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            
+            switch(e.key) {
+                case 'ArrowRight':
+                    e.preventDefault();
+                    if (currentQuestionIndex < questions.length - 1) {
+                        currentQuestionIndex++;
+                        loadQuestion();
+                    }
+                    break;
+                    
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    if (currentQuestionIndex > 0) {
+                        currentQuestionIndex--;
+                        loadQuestion();
+                    }
+                    break;
+                    
+                case 'Enter':
+                    e.preventDefault();
+                    if (currentQuestionIndex < questions.length - 1) {
+                        currentQuestionIndex++;
+                        loadQuestion();
+                    } else {
+                        // Submit on last question
+                        document.getElementById('submitBtn').click();
+                    }
+                    break;
+                    
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                    e.preventDefault();
+                    const optionIndex = parseInt(e.key) - 1;
+                    const radio = document.querySelector(`input[name="question${currentQuestionIndex}"]:nth-of-type(${optionIndex + 1})`);
+                    if (radio) {
+                        radio.checked = true;
+                        userAnswers[currentQuestionIndex] = radio.value;
+                        updateProgressBar();
+                    }
+                    break;
+            }
         });
 
         // Initialize when page loads

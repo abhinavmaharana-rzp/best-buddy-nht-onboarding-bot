@@ -138,27 +138,6 @@ describe('GamificationService', () => {
       expect(result.badges[0].name).toBe('Consistent Learner');
     });
 
-    test('should award points for helping peer', async () => {
-      const result = await gamificationService.awardTaskCompletion(
-        'U1234567890',
-        'help_peer',
-        { peerId: 'U0987654321' }
-      );
-
-      expect(result.points).toBe(20);
-      expect(result.badges).toHaveLength(1);
-      expect(result.badges[0].name).toBe('Team Player');
-    });
-
-    test('should award points for asking question', async () => {
-      const result = await gamificationService.awardTaskCompletion(
-        'U1234567890',
-        'ask_question',
-        { question: 'How do I...' }
-      );
-
-      expect(result.points).toBe(5);
-    });
 
     test('should award points for completing week', async () => {
       const result = await gamificationService.awardTaskCompletion(
@@ -307,9 +286,8 @@ describe('GamificationService', () => {
       expect(goals[0].goals).toHaveLength(3);
       expect(goals[0].goals[0].name).toContain('Complete Week 1 Tasks');
 
-      // Week 2+ should have social goals
-      expect(goals[1].goals).toHaveLength(4);
-      expect(goals[1].goals[3].name).toContain('Help a Fellow New Hire');
+      // All weeks should have the same 3 goals
+      expect(goals[1].goals).toHaveLength(3);
     });
   });
 

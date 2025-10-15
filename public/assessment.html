@@ -198,7 +198,7 @@
     <div id="loadingOverlay" class="loading-overlay">
         <div class="text-center text-white">
             <div class="loading-spinner mx-auto mb-4"></div>
-            <p>Initializing proctored assessment...</p>
+            <p id="loadingText">Initializing proctored assessment...</p>
         </div>
     </div>
 
@@ -373,6 +373,8 @@
     </div>
 
     <!-- Scripts -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js"></script>
+    <script src="/js/face-detection.js"></script>
     <script src="/js/proctoring.js"></script>
     <script>
         class AssessmentManager {
@@ -969,10 +971,25 @@
                 document.getElementById('terminatedMessage').classList.add('hidden');
                 
                 // Update score display
+                const violationCount = this.proctoringSystem ? this.proctoringSystem.violations.length : 0;
                 if (rawScore && totalQuestions) {
                     document.getElementById('finalScore').textContent = `${rawScore}/${totalQuestions} (${score}%)`;
                 } else {
-                    document.getElementById('finalScore').textContent = score;
+                    document.getElementById('finalScore').textContent = score + '%';
+                }
+                
+                // Add violations info if any
+                const successMessage = document.getElementById('successMessage');
+                const existingViolationsInfo = successMessage.querySelector('.violations-info');
+                if (existingViolationsInfo) {
+                    existingViolationsInfo.remove();
+                }
+                
+                if (violationCount > 0) {
+                    const violationsInfo = document.createElement('p');
+                    violationsInfo.className = 'violations-info text-sm text-yellow-600 mt-2';
+                    violationsInfo.textContent = `⚠️ ${violationCount} proctoring violation(s) detected during assessment`;
+                    successMessage.appendChild(violationsInfo);
                 }
             }
 
@@ -985,12 +1002,27 @@
                 document.getElementById('terminatedMessage').classList.add('hidden');
                 
                 // Update score displays
+                const violationCount = this.proctoringSystem ? this.proctoringSystem.violations.length : 0;
                 if (rawScore && totalQuestions) {
                     document.getElementById('userScore').textContent = `${rawScore}/${totalQuestions} (${score}%)`;
                 } else {
-                    document.getElementById('userScore').textContent = score;
+                    document.getElementById('userScore').textContent = score + '%';
                 }
                 document.getElementById('requiredScore').textContent = this.assessmentConfig.passingScore;
+                
+                // Add violations info if any
+                const failureMessage = document.getElementById('failureMessage');
+                const existingViolationsInfo = failureMessage.querySelector('.violations-info');
+                if (existingViolationsInfo) {
+                    existingViolationsInfo.remove();
+                }
+                
+                if (violationCount > 0) {
+                    const violationsInfo = document.createElement('p');
+                    violationsInfo.className = 'violations-info text-sm text-red-600 mt-2';
+                    violationsInfo.textContent = `⚠️ ${violationCount} proctoring violation(s) detected during assessment`;
+                    failureMessage.appendChild(violationsInfo);
+                }
             }
 
             showLoading(message = 'Loading...') {

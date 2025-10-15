@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Practice Assessment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .option-label {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .option-label:hover {
+            background: #eff6ff;
+            border-color: #93c5fd;
+        }
+        .option-label input:checked + span {
+            background: #2563eb;
+            color: #fff;
+            border-color: #2563eb;
+        }
+        .correct-answer {
+            background: #d1fae5 !important;
+            border-color: #10b981 !important;
+        }
+        .incorrect-answer {
+            background: #fee2e2 !important;
+            border-color: #ef4444 !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center space-x-3">
+                    <span class="text-4xl">📝</span>
+                    <div>
+                        <h1 id="assessmentTitle" class="text-2xl font-bold text-gray-900">Practice Assessment</h1>
+                        <p class="text-sm text-gray-600">Practice Mode - No proctoring, unlimited attempts</p>
+                    </div>
+                </div>
+                <span class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-semibold">
+                    PRACTICE MODE
+                </span>
+            </div>
+            <p id="assessmentDescription" class="text-gray-700"></p>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="bg-white rounded-lg shadow-lg p-12 text-center">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+            <p class="text-gray-600">Loading practice assessment...</p>
+        </div>
+
+        <!-- Assessment Content -->
+        <div id="assessmentContent" class="hidden">
+            <!-- Progress -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-medium text-gray-700">Progress: <span id="progressText">0/0</span></span>
+                    <span class="text-sm font-medium text-gray-700">Time: <span id="timer">00:00</span></span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Question Card -->
+            <div id="questionCard" class="bg-white rounded-lg shadow-lg p-8">
+                <!-- Will be populated -->
+            </div>
+
+            <!-- Navigation -->
+            <div class="flex justify-between mt-6">
+                <button id="prevBtn" onclick="previousQuestion()" class="bg-gray-200 hover:bg-gray-300 px-6 py-3 rounded-lg font-semibold hidden">
+                    ← Previous
+                </button>
+                <div class="flex space-x-4 ml-auto">
+                    <button id="nextBtn" onclick="nextQuestion()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold">
+                        Next →
+                    </button>
+                    <button id="submitBtn" onclick="submitAssessment()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold hidden">
+                        Submit Assessment
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div id="results" class="hidden bg-white rounded-lg shadow-lg p-8">
+            <div class="text-center mb-6">
+                <div id="resultIcon" class="text-6xl mb-4">📊</div>
+                <h2 id="resultTitle" class="text-3xl font-bold mb-2">Assessment Complete!</h2>
+                <p id="resultScore" class="text-xl text-gray-700 mb-4"></p>
+                <p id="resultMessage" class="text-gray-600"></p>
+            </div>
+
+            <div class="border-t pt-6">
+                <h3 class="font-semibold text-lg mb-4">Question Review</h3>
+                <div id="reviewList" class="space-y-3">
+                    <!-- Will be populated -->
+                </div>
+            </div>
+
+            <div class="flex justify-center space-x-4 mt-8">
+                <button onclick="retakePractice()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold">
+                    🔄 Try Again
+                </button>
+                <button onclick="window.close()" class="bg-gray-200 hover:bg-gray-300 px-6 py-3 rounded-lg font-semibold">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let config = {};
+        let questions = [];
+        let currentQuestion = 0;
+        let userAnswers = [];
+        let startTime;
+        let timerInterval;
+        let showingAnswers = false;
+
+        async function init() {
+            const params = new URLSearchParams(window.location.search);
+            const taskTitle = params.get('assessment') || 'Fintech 101';
+            
+            try {
+                const response = await fetch('/api/assessment/practice', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ taskTitle })
+                });
+                
+                const data = await response.json();
+                config = data.config;
+                questions = config.questions || [];
+                userAnswers = new Array(questions.length).fill(null);
+                
+                document.getElementById('assessmentTitle').textContent = config.title;
+                document.getElementById('assessmentDescription').textContent = config.description;
+                
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('assessmentContent').classList.remove('hidden');
+                
+                startTimer();
+                loadQuestion();
+            } catch (error) {
+                console.error('Error loading practice assessment:', error);
+                alert('Failed to load practice assessment');
+            }
+        }
+
+        function startTimer() {
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                const secs = (elapsed % 60).toString().padStart(2, '0');
+                document.getElementById('timer').textContent = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function loadQuestion() {
+            const q = questions[currentQuestion];
+            const answered = userAnswers.filter(a => a !== null).length;
+            
+            document.getElementById('progressText').textContent = `${answered}/${questions.length}`;
+            document.getElementById('progressBar').style.width = `${(answered / questions.length) * 100}%`;
+            
+            const html = `
+                <div class="mb-4">
+                    <span class="text-sm text-gray-500">Question ${currentQuestion + 1} of ${questions.length}</span>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 mb-6">${q.question}</h3>
+                <div class="space-y-3">
+                    ${q.options.map((option, idx) => `
+                        <label class="option-label block border-2 rounded-lg p-4">
+                            <input type="radio" name="answer" value="${option}" 
+                                   ${userAnswers[currentQuestion] === option ? 'checked' : ''}
+                                   onchange="selectAnswer('${option.replace(/'/g, "\\'")}')">
+                            <span class="block">${idx + 1}. ${option}</span>
+                        </label>
+                    `).join('')}
+                </div>
+                ${showingAnswers ? `
+                    <div class="mt-6 p-4 bg-green-50 border-2 border-green-500 rounded-lg">
+                        <p class="font-semibold text-green-900">✓ Correct Answer: ${q.correctAnswer}</p>
+                        <p class="text-sm text-green-800 mt-2">${q.explanation || ''}</p>
+                    </div>
+                ` : ''}
+            `;
+            
+            document.getElementById('questionCard').innerHTML = html;
+            
+            // Update navigation buttons
+            document.getElementById('prevBtn').classList.toggle('hidden', currentQuestion === 0);
+            document.getElementById('nextBtn').classList.toggle('hidden', currentQuestion === questions.length - 1);
+            document.getElementById('submitBtn').classList.toggle('hidden', currentQuestion !== questions.length - 1);
+        }
+
+        function selectAnswer(answer) {
+            userAnswers[currentQuestion] = answer;
+            const answered = userAnswers.filter(a => a !== null).length;
+            document.getElementById('progressText').textContent = `${answered}/${questions.length}`;
+            document.getElementById('progressBar').style.width = `${(answered / questions.length) * 100}%`;
+        }
+
+        function previousQuestion() {
+            if (currentQuestion > 0) {
+                currentQuestion--;
+                showingAnswers = false;
+                loadQuestion();
+            }
+        }
+
+        function nextQuestion() {
+            if (currentQuestion < questions.length - 1) {
+                currentQuestion++;
+                showingAnswers = false;
+                loadQuestion();
+            }
+        }
+
+        function submitAssessment() {
+            // Check if all answered
+            if (userAnswers.includes(null)) {
+                if (!confirm('You have unanswered questions. Submit anyway?')) return;
+            }
+            
+            clearInterval(timerInterval);
+            
+            // Calculate score
+            let correct = 0;
+            const results = questions.map((q, idx) => {
+                const isCorrect = userAnswers[idx] === q.correctAnswer;
+                if (isCorrect) correct++;
+                return {
+                    question: q.question,
+                    userAnswer: userAnswers[idx] || 'Not answered',
+                    correctAnswer: q.correctAnswer,
+                    isCorrect: isCorrect,
+                    explanation: q.explanation
+                };
+            });
+            
+            const score = Math.round((correct / questions.length) * 100);
+            const passed = score >= (config.passingScore || 80);
+            
+            showResults(score, correct, passed, results);
+        }
+
+        function showResults(score, correct, passed, results) {
+            document.getElementById('assessmentContent').classList.add('hidden');
+            document.getElementById('results').classList.remove('hidden');
+            
+            document.getElementById('resultIcon').textContent = passed ? '🎉' : '📖';
+            document.getElementById('resultTitle').textContent = passed ? 'Great Job!' : 'Keep Learning!';
+            document.getElementById('resultScore').textContent = `Score: ${correct}/${questions.length} (${score}%)`;
+            document.getElementById('resultMessage').textContent = passed 
+                ? 'You achieved a passing score! When you\'re ready, take the real proctored assessment.'
+                : 'Review the questions below and try again. This is practice - take your time to learn!';
+            
+            // Show review
+            const reviewHTML = results.map((r, idx) => `
+                <div class="p-4 border rounded-lg ${r.isCorrect ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}">
+                    <div class="flex items-start justify-between mb-2">
+                        <p class="font-medium text-sm text-gray-900">Q${idx + 1}: ${r.question}</p>
+                        <span class="text-lg">${r.isCorrect ? '✅' : '❌'}</span>
+                    </div>
+                    <p class="text-sm text-gray-700 mb-1">
+                        <strong>Your Answer:</strong> ${r.userAnswer}
+                    </p>
+                    ${!r.isCorrect ? `
+                        <p class="text-sm text-green-700 mb-1">
+                            <strong>Correct Answer:</strong> ${r.correctAnswer}
+                        </p>
+                    ` : ''}
+                    ${r.explanation ? `
+                        <p class="text-xs text-gray-600 mt-2 italic">💡 ${r.explanation}</p>
+                    ` : ''}
+                </div>
+            `).join('');
+            
+            document.getElementById('reviewList').innerHTML = reviewHTML;
+        }
+
+        function retakePractice() {
+            currentQuestion = 0;
+            userAnswers = new Array(questions.length).fill(null);
+            showingAnswers = false;
+            
+            document.getElementById('results').classList.add('hidden');
+            document.getElementById('assessmentContent').classList.remove('hidden');
+            
+            startTime = Date.now();
+            loadQuestion();
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (document.getElementById('results').classList.contains('hidden') === false) return;
+            if (e.target.tagName === 'INPUT') return;
+            
+            switch(e.key) {
+                case 'ArrowRight':
+                    e.preventDefault();
+                    nextQuestion();
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    previousQuestion();
+                    break;
+                case 'Enter':
+                    e.preventDefault();
+                    if (currentQuestion < questions.length - 1) {
+                        nextQuestion();
+                    } else {
+                        submitAssessment();
+                    }
+                    break;
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                    e.preventDefault();
+                    const idx = parseInt(e.key) - 1;
+                    const inputs = document.querySelectorAll('input[name="answer"]');
+                    if (inputs[idx]) {
+                        inputs[idx].checked = true;
+                        selectAnswer(inputs[idx].value);
+                    }
+                    break;
+                case 's':
+                case 'S':
+                    // Show answer (cheat mode for practice)
+                    if (e.ctrlKey || e.metaKey) {
+                        e.preventDefault();
+                        showingAnswers = true;
+                        loadQuestion();
+                    }
+                    break;
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
+
